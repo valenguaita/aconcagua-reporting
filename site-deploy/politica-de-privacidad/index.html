@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidad — Aconcagua</title>
+<meta name="description" content="Política de privacidad de Aconcagua Reporting, la herramienta interna de reporting publicitario de Aconcagua Agency.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --bg: #F6F8F6;
+    --surface: #FFFFFF;
+    --border: #E1E7E3;
+    --text: #16211D;
+    --text-muted: #576259;
+    --text-faint: #8A968E;
+    --accent: #00A98A;
+    --accent-bg: rgba(0,169,138,.08);
+    --accent-ink: #04231C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1C2431;
+      --surface: #252E3C;
+      --border: #323C4B;
+      --text: #E7EDF3;
+      --text-muted: #A1ACBA;
+      --text-faint: #717D8D;
+      --accent: #00EABD;
+      --accent-bg: rgba(0,234,189,.12);
+      --accent-ink: #04241D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1C2431;
+    --surface: #252E3C;
+    --border: #323C4B;
+    --text: #E7EDF3;
+    --text-muted: #A1ACBA;
+    --text-faint: #717D8D;
+    --accent: #00EABD;
+    --accent-bg: rgba(0,234,189,.12);
+    --accent-ink: #04241D;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Public Sans", -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 44px; }
+  .brand .peak { width: 22px; height: 24px; color: var(--accent); flex: none; }
+  .brand .peak path { fill: currentColor; }
+  .brand .wm { display: flex; flex-direction: column; line-height: 1.15; }
+  .brand .wm .name { font-family: "Public Sans", sans-serif; font-size: 14px; font-weight: 600; color: var(--text); }
+  .brand .wm .sub { font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .04em; color: var(--text-faint); text-transform: uppercase; }
+
+  h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: clamp(32px, 5vw, 44px);
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    margin: 0 0 22px;
+    text-wrap: balance;
+    max-width: 14ch;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    padding: 18px 0 20px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .meta div { display: flex; flex-direction: column; gap: 3px; }
+  .meta .k { font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+  .meta .v { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .lede {
+    font-size: 18px;
+    color: var(--text-muted);
+    max-width: 62ch;
+    margin: 0 0 40px;
+  }
+
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 48px;
+  }
+  nav.toc .toc-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 12px;
+    display: block;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
+  nav.toc li { break-inside: avoid; margin-bottom: 9px; }
+  nav.toc a {
+    display: flex; align-items: baseline; gap: 9px;
+    color: var(--text-muted); text-decoration: none; font-size: 14px;
+  }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc a .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); flex: none; }
+
+  section.clause { padding: 36px 0; border-bottom: 1px solid var(--border); scroll-margin-top: 24px; }
+  section.clause:last-of-type { border-bottom: none; }
+  .clause-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+  .clause-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14px;
+    color: var(--accent);
+    flex: none;
+    padding-top: 3px;
+  }
+  h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: 23px;
+    letter-spacing: -.005em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .clause-body { max-width: 62ch; color: var(--text); }
+  .clause-body p { margin: 0 0 14px; }
+  .clause-body p:last-child { margin-bottom: 0; }
+  .clause-body ul { margin: 0 0 14px; padding-left: 22px; }
+  .clause-body li { margin-bottom: 6px; }
+  .clause-body strong { color: var(--text); font-weight: 600; }
+  .clause-body a { color: var(--accent); }
+
+  .not-collected {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent-bg); color: var(--accent);
+    border-radius: 8px; padding: 10px 14px; margin-top: 4px;
+    font-size: 14.5px; font-weight: 500;
+  }
+
+  .platform-list { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px; }
+  .platform-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 9px;
+    font-size: 14.5px;
+  }
+  .platform-row .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+  .platform-row b { font-weight: 600; min-width: 92px; }
+  .platform-row span { color: var(--text-muted); }
+
+  footer { padding-top: 36px; }
+  footer .contact {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px 26px;
+  }
+  footer .contact h3 { font-family: "Fraunces", serif; font-weight: 600; font-size: 18px; margin: 0 0 8px; }
+  footer .contact p { margin: 0 0 12px; color: var(--text-muted); font-size: 15px; }
+  footer .contact a.mail {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "IBM Plex Mono", monospace; font-size: 14px;
+    color: var(--accent-ink); background: var(--accent);
+    padding: 9px 16px; border-radius: 8px; text-decoration: none; font-weight: 500;
+  }
+  .back-top { display: inline-block; margin-top: 28px; font-size: 13px; color: var(--text-faint); text-decoration: none; }
+  .back-top:hover { color: var(--accent); }
+
+  @media (max-width: 560px) {
+    nav.toc ol { columns: 1; }
+    .clause-head { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">
+    <svg class="peak" viewBox="0 0 67 72" xmlns="http://www.w3.org/2000/svg"><path d="M8.21001 54.6L33.4 0L58.44 54.6L33.33 31.03L8.21001 54.6Z"/><path d="M5.49294e-06 71.82L6.22001 58.77L9.08001 58.28L12.52 54.21L15.18 53.58H16.82L19.56 52.95H23.21L25.51 50.6L28.17 49.35L31.92 47H34.15L36.3 47.94L38.18 48.25L39.9 50.44L40.21 51.38L41.15 51.85H42.09L44.12 53.88L48.19 54.19L54.29 58.26L57.73 58.89L63.05 64.37L66.42 71.8C66.42 71.8 52.09 64.3 33.32 64.49C25.6 64.65 16.3 65.81 6.33001 69.29C4.10001 70.07 1.99001 70.91 -0.00999451 71.79L5.49294e-06 71.82Z"/></svg>
+    <div class="wm"><span class="name">Aconcagua</span><span class="sub">Agency</span></div>
+  </div>
+
+  <h1>Política de Privacidad de Aconcagua Reporting</h1>
+
+  <div class="meta">
+    <div><span class="k">Vigente desde</span><span class="v">09 sep 2026</span></div>
+    <div><span class="k">Versión</span><span class="v">1.0</span></div>
+    <div><span class="k">Aplica a</span><span class="v">Meta, Google, Pinterest Ads</span></div>
+    <div><span class="k">Alcance</span><span class="v">Uso interno de agencia</span></div>
+  </div>
+
+  <p class="lede">Aconcagua Agency opera <strong>Aconcagua Reporting</strong>, una herramienta interna que conecta, mediante las APIs oficiales de cada plataforma publicitaria, con las cuentas de nuestros clientes para generar reportes de performance. Este documento explica qué datos leemos, para qué los usamos y cómo los protegemos.</p>
+
+  <nav class="toc">
+    <span class="toc-label">En este documento</span>
+    <ol>
+      <li><a href="#datos"><span class="n">01</span> Qué datos accedemos</a></li>
+      <li><a href="#uso"><span class="n">02</span> Para qué los usamos</a></li>
+      <li><a href="#seguridad"><span class="n">03</span> Cómo los protegemos</a></li>
+      <li><a href="#terceros"><span class="n">04</span> Con quién los compartimos</a></li>
+      <li><a href="#retencion"><span class="n">05</span> Retención de datos</a></li>
+      <li><a href="#revocar"><span class="n">06</span> Tus derechos y cómo revocar el acceso</a></li>
+      <li><a href="#cambios"><span class="n">07</span> Cambios a esta política</a></li>
+      <li><a href="#contacto"><span class="n">08</span> Contacto</a></li>
+    </ol>
+  </nav>
+
+  <section class="clause" id="datos">
+    <div class="clause-head"><span class="clause-num">01</span><h2>Qué datos accedemos</h2></div>
+    <div class="clause-body">
+      <p>Con el acceso que cada cliente otorga explícitamente a Aconcagua sobre su cuenta publicitaria (vía Business Access o el equivalente de cada plataforma), leemos únicamente datos de rendimiento de campañas:</p>
+      <div class="platform-list">
+        <div class="platform-row"><span class="dot"></span><b>Métricas</b><span>gasto, impresiones, clics, conversiones, CTR, CPC, ROAS y equivalentes</span></div>
+        <div class="platform-row"><span class="dot"></span><b>Estructura</b><span>nombres de campañas, grupos de anuncios, anuncios y Pines</span></div>
+        <div class="platform-row"><span class="dot"></span><b>Búsqueda</b><span>palabras clave y términos de búsqueda, cuando la cuenta los usa</span></div>
+      </div>
+      <p class="not-collected">No accedemos a datos personales de las personas que ven o interactúan con los anuncios — ni nombres, ni contactos, ni comportamiento individual.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="uso">
+    <div class="clause-head"><span class="clause-num">02</span><h2>Para qué los usamos</h2></div>
+    <div class="clause-body">
+      <p>Exclusivamente para generar los reportes de performance que compartimos con cada cliente sobre <strong>sus propias campañas</strong>. No usamos estos datos para ningún otro fin, no los cruzamos con datos de otros clientes, y no entrenamos modelos ni los usamos con fines publicitarios propios.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="seguridad">
+    <div class="clause-head"><span class="clause-num">03</span><h2>Cómo los protegemos</h2></div>
+    <div class="clause-body">
+      <p>Los tokens de acceso a cada API se almacenan del lado del servidor, cifrados en tránsito y en reposo, y nunca se exponen en el navegador ni en código público. Solo se usan para solicitar datos de <strong>solo lectura</strong> — Aconcagua Reporting no puede crear, editar, pausar ni eliminar campañas en ninguna cuenta conectada. El acceso a la herramienta está restringido al equipo de Aconcagua.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="terceros">
+    <div class="clause-head"><span class="clause-num">04</span><h2>Con quién los compartimos</h2></div>
+    <div class="clause-body">
+      <p>No vendemos, licenciamos ni compartimos los datos de campañas con terceros. Cada cliente accede únicamente a los reportes de sus propias cuentas.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="retencion">
+    <div class="clause-head"><span class="clause-num">05</span><h2>Retención de datos</h2></div>
+    <div class="clause-body">
+      <p>Conservamos los datos de performance el tiempo necesario para mantener el histórico de reportes de cada cliente. Un cliente puede solicitar la eliminación de sus datos en cualquier momento, escribiéndonos a través del contacto al pie de esta página.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="revocar">
+    <div class="clause-head"><span class="clause-num">06</span><h2>Tus derechos y cómo revocar el acceso</h2></div>
+    <div class="clause-body">
+      <p>Cualquier cliente puede revocar el acceso de Aconcagua a su cuenta publicitaria en cualquier momento, directamente desde la configuración de Business Access de cada plataforma (Meta Business Manager, Google Ads o Pinterest Business Access). Al revocarlo, dejamos de poder leer nuevos datos de esa cuenta de forma inmediata.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="cambios">
+    <div class="clause-head"><span class="clause-num">07</span><h2>Cambios a esta política</h2></div>
+    <div class="clause-body">
+      <p>Si actualizamos esta política, publicamos la nueva versión en esta misma dirección con la fecha de vigencia actualizada.</p>
+    </div>
+  </section>
+
+  <section class="clause" id="contacto" style="border-bottom:none;padding-bottom:0;">
+    <div class="clause-head"><span class="clause-num">08</span><h2>Contacto</h2></div>
+    <div class="clause-body">
+      <footer>
+        <div class="contact">
+          <h3>¿Preguntas sobre esta política?</h3>
+          <p>Escribinos y te respondemos directamente.</p>
+          <a class="mail" href="mailto:privacidad@aconcagua.agency">privacidad@aconcagua.agency</a>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <a class="back-top" href="#top">↑ Volver arriba</a>
+</div>
+</body>
+</html>

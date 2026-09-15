@@ -343,11 +343,30 @@
   .chart-box-wide { min-height: 300px; }
   .chart-title { font-size: 13.5px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
   .chart-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .chart-title-actions { display: flex; align-items: center; gap: 12px; flex: none; }
+  .btn-link-sm { background: none; border: none; padding: 0; color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-link-sm:hover { text-decoration: underline; }
+  table.compact tfoot td { padding: 12px 14px; border-top: 2px solid var(--border-strong); font-weight: 700; color: var(--text); background: var(--surface-2); }
+  table.compact tfoot td.right { text-align: right; }
+  table.compact th.mtbl-name, table.compact td.mtbl-name { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  table.compact th.col-impr, table.compact td.col-impr { background: rgba(91,155,255,.09); }
+  table.compact th.col-impr { color: #8FB8FF; }
+  table.compact th.col-clicks, table.compact td.col-clicks { background: rgba(255,159,67,.09); }
+  table.compact th.col-clicks { color: #FFB37A; }
+  table.compact th.col-ctr, table.compact td.col-ctr { background: rgba(242,180,65,.09); }
+  table.compact th.col-ctr { color: var(--yellow); }
+  table.compact th.col-conv, table.compact td.col-conv { background: rgba(0,234,189,.09); }
+  table.compact th.col-conv { color: var(--green); }
+  table.compact th.col-roas, table.compact td.col-roas { background: rgba(168,130,255,.11); }
+  table.compact th.col-roas { color: #C0A6FF; }
+  table.compact tfoot td.col-impr, table.compact tfoot td.col-clicks, table.compact tfoot td.col-ctr, table.compact tfoot td.col-conv, table.compact tfoot td.col-roas { background: var(--surface-2); }
   .chart-title-row .chart-title { margin-bottom: 0; }
   .select-sm { min-height: 30px; padding: 4px 9px; font-size: 12px; min-width: auto; }
   .chart-box > :last-child { flex: 1; display: flex; align-items: center; justify-content: center; }
   .chart-box > .rank-list, .chart-box > .crea-result-inner { align-items: stretch; justify-content: flex-start; }
   .chart-box > .vbar-list { flex: none; align-items: flex-end; justify-content: space-between; }
+  .chart-box > .pacing-projection { flex: none; display: block; }
+  .chart-box-compact { min-height: auto; }
   .chart-box > .btn:last-child { flex: none; display: inline-flex; }
   .bar-chart-svg { width: 100%; height: auto; }
   .donut-wrap { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%; }
@@ -355,7 +374,7 @@
   .donut-leg-item { display: flex; align-items: center; gap: 8px; }
   .donut-leg-item .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex: none; }
   .donut-leg-item b { margin-left: auto; }
-  .rank-list { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 10px; width: 100%; }
+  .rank-list { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 10px; width: 100%; max-height: 480px; overflow-y: auto; padding-right: 6px; }
   .rank-row { display: flex; align-items: center; gap: 12px; padding: 6px; border-radius: 10px; transition: background .15s ease; }
   .rank-row:hover { background: var(--surface-2); }
   .rank-num { width: 18px; text-align: center; font-size: 12px; font-weight: 800; flex: none; }
@@ -371,15 +390,23 @@
   .obj-chip { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1.5px 7px; border-radius: 20px; white-space: nowrap; }
   .target-tick { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,.55); z-index: 1; transform: translateX(-1px); }
   .target-tick.target-tick-h { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 2px; transform: translateY(1px); }
-  .vbar-list { display: flex; align-items: flex-end; gap: 18px; width: 100%; height: 240px; padding: 0 4px; }
-  .vbar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
+  .pacing-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; gap: 10px; }
+  .pacing-row b { color: var(--text); font-weight: 700; }
+  .pacing-pct { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; flex: none; }
+  .pacing-track { position: relative; height: 10px; background: var(--surface-2); border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+  .pacing-fill { height: 100%; border-radius: 6px; transition: width .3s ease; }
+  .pacing-projection { font-size: 12.5px; color: var(--text-muted); }
+  .pacing-projection b { color: var(--text); }
+  .vbar-list { display: flex; align-items: flex-end; gap: 18px; width: 100%; height: 240px; padding: 0 4px 10px; overflow-x: auto; }
+  .vbar-col { flex: 1 0 90px; min-width: 90px; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
   .vbar-value { font-size: 14px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
-  .vbar-obj-chip { line-height: 1; }
+  .vbar-obj-chip { line-height: 1.2; max-width: 100%; }
+  .vbar-obj-chip .obj-chip { white-space: normal; text-align: center; display: inline-block; max-width: 100%; }
   .vbar-trend { opacity: .85; display: inline-flex; align-items: center; }
   .vbar-track { width: 100%; max-width: 58px; flex: 1; background: var(--surface-2); border-radius: 8px 8px 4px 4px; display: flex; align-items: flex-end; overflow: hidden; position: relative; }
   .vbar-fill { width: 100%; border-radius: 8px 8px 4px 4px; background-image: linear-gradient(180deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%); background-blend-mode: overlay; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); transition: height .25s ease; }
   .vbar-label { font-size: 12.5px; font-weight: 700; color: var(--text); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-  .vbar-sub { font-size: 11px; color: var(--text-faint); text-align: center; white-space: nowrap; }
+  .vbar-sub { font-size: 11px; color: var(--text-faint); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .rank-sub { font-size: 11px; color: var(--text-faint); margin-top: 5px; }
   .seg#cliObjSeg { margin-right: 2px; }
   .v-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
@@ -587,19 +614,6 @@
   </div>
 </div>
 
-<div class="modal-bg" id="planModal">
-  <div class="modal wide">
-    <h2 id="pmTitle">Plan de acción</h2>
-    <p class="msub" id="pmConds"></p>
-    <div class="field" style="margin-bottom:8px"><label>Plan de acción (editable)</label><textarea class="input" id="pmText" style="min-height:180px"></textarea></div>
-    <p style="color:var(--text-faint);font-size:11.5px;margin:0 0 14px">Editá el plan a tu gusto. (En la versión con IA, este texto será el prompt que lo genera y refina.)</p>
-    <div class="mactions">
-      <button class="btn" id="pmCancel">Cerrar</button>
-      <button class="btn btn-primary" id="pmCopy">Copiar plan</button>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -607,6 +621,16 @@
 </script>
 <script>
 const DEFAULT_THRESHOLDS = { roasMin: 2.5, cpaMax: 3000, ctrMin: 1.0, pacingMin: 40 };
+const MOCK_PLANNED_BUDGET = {
+  '111': { meta: 520000, google: 400000, pinterest: 130000 },
+  '222': { meta: 475000, google: 250000, tiktok: 270000 },
+  '333': { meta: 380000, google: 190000 },
+  '444': { tiktok: 148000 },
+  '555': { meta: 420000, google: 172000, pinterest: 103000 },
+  '666': {},
+  '777': { meta: 555000, google: 260000 }
+};
+const PLATFORM_LABEL = { meta: 'Meta', google: 'Google Ads', pinterest: 'Pinterest', tiktok: 'TikTok Ads' };
 const LS_GLOBAL = 'aconcagua_global_th', LS_CLIENT = 'aconcagua_client_th';
 const LS_TOKEN = 'aconcagua_meta_token', LS_ACCOUNTS = 'aconcagua_meta_accounts';
 const state = {
@@ -642,13 +666,14 @@ const MOCK_SHEET = [
   { status:'Activo',   categoria:'C', nombre:'Moda Bella',          owner:'Sofía',  coOwners:[],                metaId:'444', targetRoas:2.0, targetCpa:2500, presupuesto:375000,  objetivo:'conversiones', ticket:5000 },
   { status:'Activo',   categoria:'B', nombre:'TecnoHogar',          owner:'Lucas',  coOwners:['Martín'],        metaId:'555', targetRoas:4.0, targetCpa:3500, presupuesto:1000000, objetivo:'conversiones', ticket:12000 },
   { status:'En Pausa', categoria:'C', nombre:'Viajes Andinos',      owner:'Valen',  coOwners:[],                metaId:'666', targetRoas:2.5, targetCpa:2200, presupuesto:250000,  objetivo:'conversiones', ticket:9000 },
-  { status:'Activo',   categoria:'A', nombre:'InmoAndes Propiedades', owner:'Martín', coOwners:['Valen'],       metaId:'777', targetRoas:0,   targetCpa:3500, presupuesto:550000,  objetivo:'leads',        ticket:0 }
+  { status:'Activo',   categoria:'A', nombre:'InmoAndes Propiedades', owner:'Martín', coOwners:['Valen'],       metaId:'777', targetRoas:0,   targetCpa:3500, presupuesto:550000,  objetivo:'leads',        ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Skinko Argentina',    owner:'Valen',  coOwners:[],                metaId:'888', targetRoas:2.5, targetCpa:2000, presupuesto:0,       objetivo:'conversiones', ticket:0 }
 ];
 const MOCK_PLATFORMS = {
   '111': { meta:{ spend:300000, roas:3.9, conv:238, impr:2000000, clicks:40000, trend:[230,240,253,268,280,290,300] }, google:{ spend:180000, roas:3.6, conv:125, impr:750000, clicks:13500, trend:[138,145,153,160,168,175,180] }, pinterest:{ spend:95000, roas:3.3, conv:58, impr:620000, clicks:9800, trend:[68,72,78,84,88,92,95] } },
-  '222': { meta:{ spend:275000, roas:1.6, conv:130, impr:1750000, clicks:12250, trend:[345,330,315,300,290,283,275] }, google:{ spend:145000, roas:1.9, conv:70, impr:625000, clicks:6875, trend:[175,168,160,155,150,148,145] } },
+  '222': { meta:{ spend:275000, roas:1.6, conv:130, impr:1750000, clicks:12250, trend:[345,330,315,300,290,283,275] }, google:{ spend:145000, roas:1.9, conv:70, impr:625000, clicks:6875, trend:[175,168,160,155,150,148,145] }, tiktok:{ spend:120000, roas:1.7, conv:55, impr:1900000, clicks:28500, trend:[82,90,98,104,110,116,120] } },
   '333': { meta:{ spend:220000, roas:null, conv:50, impr:1250000, clicks:17500, trend:[213,215,218,215,220,218,220] }, google:{ spend:110000, roas:null, conv:25, impr:450000, clicks:6300, trend:[108,110,108,110,113,110,110] } },
-  '444': { meta:{ spend:0, roas:null, conv:0, impr:0, clicks:0, trend:[0,0,0,0,0,0,0] }, google:null },
+  '444': { meta:{ spend:0, roas:null, conv:0, impr:0, clicks:0, trend:[0,0,0,0,0,0,0] }, google:null, tiktok:{ spend:85000, roas:2.3, conv:40, impr:1400000, clicks:19000, trend:[58,64,70,75,79,82,85] } },
   '555': { meta:{ spend:175000, roas:4.3, conv:60, impr:1125000, clicks:18000, trend:[140,150,158,163,168,173,175] }, google:{ spend:100000, roas:4.0, conv:35, impr:450000, clicks:6750, trend:[78,83,88,90,95,98,100] }, pinterest:{ spend:60000, roas:3.6, conv:22, impr:380000, clicks:6100, trend:[42,46,50,54,57,59,60] } },
   '666': { meta:null, google:null },
   '777': { meta:{ spend:320000, roas:null, conv:140, impr:2100000, clicks:42000, trend:[235,248,261,275,288,300,315] }, google:{ spend:180000, roas:null, conv:78, impr:1150000, clicks:23000, trend:[128,135,142,150,157,165,172] } }
@@ -773,6 +798,54 @@ function generatePinterestCampaigns(c) {
     return { name, spend, conv, roas, ctr };
   });
 }
+const TIKTOK_CAMPAIGN_POOL = {
+  '222': ['Reach — Descubrimiento', 'Conversiones — Retargeting', 'Traffic — UGC Creators'],
+  '444': ['Reach — Descubrimiento', 'Conversiones — Retargeting', 'Traffic — UGC Creators']
+};
+const TIKTOK_VIDEO_POOL = {
+  '222': ['Rutina de gimnasio en 60 segundos', 'Unboxing proteína FitLife', 'Antes y después — 30 días', 'Reto fitness con influencer', 'Tutorial: shake post entreno'],
+  '444': ['Get ready with me — outfit del día', 'Prueba de talles en cámara', 'Unboxing pedido Moda Bella', 'Transición de outfit viral', 'Styling tips en 30 segundos']
+};
+function generateTikTokCampaigns(c) {
+  const R = c.platforms.tiktok, pool = TIKTOK_CAMPAIGN_POOL[c.metaId];
+  if (!R || R.spend <= 0 || !pool) return [];
+  const baseCtr = R.impr>0 ? R.clicks/R.impr*100 : 1;
+  const weights = pool.map((_,i) => rnd(hashStr(c.metaId+'tcampW'+i)) + 0.4);
+  const wSum = weights.reduce((a,b) => a+b, 0);
+  return pool.map((name, i) => {
+    const seed = hashStr(c.metaId + 'tcamp' + i);
+    const w = weights[i]/wSum;
+    const spend = Math.round(R.spend * w);
+    const impr = Math.max(50, Math.round(R.impr * w));
+    const ctr = +(baseCtr * (0.5 + rnd(seed+11)*1.2)).toFixed(2);
+    const clicks = Math.max(0, Math.round(impr * ctr/100));
+    const convRatePerClick = R.clicks>0 ? R.conv/R.clicks : 0;
+    const conv = clicks>0 ? Math.round(clicks * convRatePerClick * (0.4 + rnd(seed+41)*1.6)) : 0;
+    const roas = R.roas != null ? +(R.roas * (0.6 + rnd(seed+3)*0.9)).toFixed(2) : null;
+    return { name, spend, conv, roas, ctr };
+  });
+}
+function generateTikTokVideos(c) {
+  const R = c.platforms.tiktok, pool = TIKTOK_VIDEO_POOL[c.metaId];
+  if (!R || R.spend <= 0 || !pool) return [];
+  const baseCtr = R.impr>0 ? R.clicks/R.impr*100 : 1;
+  const weights = pool.map((_,i) => rnd(hashStr(c.metaId+'tvidW'+i)) + 0.4);
+  const wSum = weights.reduce((a,b) => a+b, 0);
+  return pool.map((name, i) => {
+    const seed = hashStr(c.metaId + 'tvid' + i);
+    const w = weights[i]/wSum;
+    const spend = Math.round(R.spend * w);
+    const impr = Math.max(50, Math.round(R.impr * w));
+    const ctr = +(baseCtr * (0.5 + rnd(seed+11)*1.2)).toFixed(2);
+    const clicks = Math.max(0, Math.round(impr * ctr/100));
+    const convRatePerClick = R.clicks>0 ? R.conv/R.clicks : 0;
+    const conv = clicks>0 ? Math.round(clicks * convRatePerClick * (0.4 + rnd(seed+41)*1.6)) : 0;
+    const roas = R.roas != null ? +(R.roas * (0.6 + rnd(seed+3)*0.9)).toFixed(2) : null;
+    const views = Math.round(impr * (0.88 + rnd(seed+51)*0.10));
+    const vcr = +(12 + rnd(seed+61)*18).toFixed(1);
+    return { name, spend, conv, roas, ctr, views, vcr };
+  });
+}
 const PERIOD_FACTOR = { this_month: 1.0, last_month: 1.75, last_7d: 0.28, last_30d: 1.62 };
 function periodFactor(period) {
   if (period === 'custom' && state.customFrom && state.customTo) {
@@ -783,10 +856,68 @@ function periodFactor(period) {
 }
 /* ===== Meta Marketing API (datos reales) ===== */
 const META_API_VERSION = 'v21.0';
-const META_PURCHASE_ACTIONS = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'];
+// Meta suele reportar la MISMA compra bajo varios action_type superpuestos
+// (omni_purchase incluye lo que ya cuenta offsite_conversion.fb_pixel_purchase, que a su vez
+// se solapa con purchase). Sumar los tres cuenta cada compra hasta 3 veces — hay que elegir
+// uno solo, en orden de preferencia (el más agregado/recomendado por Meta primero).
+const META_PURCHASE_ACTION_PRIORITY = ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'];
 function metaActionSum(list, types) {
   if (!list) return 0;
-  return list.filter(a => types.includes(a.action_type)).reduce((s,a) => s + (+a.value || 0), 0);
+  for (const type of types) {
+    const match = list.find(a => a.action_type === type);
+    if (match) return +match.value || 0;
+  }
+  return 0;
+}
+async function fetchMetaSpendTotal(token, accountId, since, until) {
+  const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
+  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
+  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?fields=spend&time_range=${timeRange}&access_token=${encodeURIComponent(token)}`;
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error || !json.data || !json.data[0]) return null;
+    return +json.data[0].spend || 0;
+  } catch (e) { return null; }
+}
+async function fetchMetaHierarchy(token, accountId, since, until) {
+  const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
+  const fields = 'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,action_values';
+  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
+  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?level=ad&fields=${fields}&time_range=${timeRange}&limit=500&access_token=${encodeURIComponent(token)}`;
+  const res = await fetch(url);
+  const json = await res.json();
+  if (json.error) { const err = new Error(json.error.message || 'Error de la API de Meta'); err.metaError = json.error; throw err; }
+  const rows = json.data || [];
+
+  function buildLevel(idKey, nameKey) {
+    const groups = {};
+    rows.forEach(r => {
+      const id = r[idKey]; if (!id) return;
+      if (!groups[id]) groups[id] = { name: r[nameKey] || id, spend: 0, conv: 0, revenueNum: 0, impr: 0, clicks: 0 };
+      const g = groups[id];
+      g.spend += +r.spend || 0;
+      g.conv += metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY);
+      g.revenueNum += metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY);
+      g.impr += +r.impressions || 0;
+      g.clicks += +r.clicks || 0;
+    });
+    return Object.values(groups).map(g => ({
+      name: g.name,
+      spend: Math.round(g.spend),
+      conv: Math.round(g.conv),
+      impr: Math.round(g.impr),
+      clicks: Math.round(g.clicks),
+      roas: g.spend > 0 ? +(g.revenueNum/g.spend).toFixed(2) : null,
+      ctr: g.impr > 0 ? +(g.clicks/g.impr*100).toFixed(2) : null
+    })).sort((a,b) => b.spend - a.spend);
+  }
+
+  return {
+    campaigns: buildLevel('campaign_id', 'campaign_name'),
+    adsets: buildLevel('adset_id', 'adset_name'),
+    ads: buildLevel('ad_id', 'ad_name')
+  };
 }
 async function fetchMetaInsightsDaily(token, accountId, since, until) {
   const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
@@ -810,8 +941,8 @@ async function fetchMetaInsightsDaily(token, accountId, since, until) {
 }
 function metaDayFromRow(row) {
   const spend = +row.spend || 0;
-  const conv = metaActionSum(row.actions, META_PURCHASE_ACTIONS);
-  const revenue = metaActionSum(row.action_values, META_PURCHASE_ACTIONS);
+  const conv = metaActionSum(row.actions, META_PURCHASE_ACTION_PRIORITY);
+  const revenue = metaActionSum(row.action_values, META_PURCHASE_ACTION_PRIORITY);
   return {
     date: row.date_start,
     gasto: Math.round(spend),
@@ -869,14 +1000,26 @@ async function buildClients(period) {
     const p = MOCK_PLATFORMS[row.metaId] || {};
     const wk = MOCK_WEEKLY[row.metaId];
     const accountId = state.clientAccounts[row.metaId];
-    let metaRaw = scale(p.meta), weekly = wk ? { labels: WEEK_LABELS, ...wk } : null, metaLiveDays = null, metaError = null;
+    let metaRaw = scale(p.meta), weekly = wk ? { labels: WEEK_LABELS, ...wk } : null, metaLiveDays = null, metaError = null, metaLiveHierarchy = null;
     if (accountId && token) {
       try {
         const live = await fetchMetaClient(token, accountId, sinceStr, untilStr);
         metaRaw = live.raw; metaLiveDays = live.days; if (live.weekly) weekly = live.weekly;
+        // "vs período anterior" tiene que comparar el TOTAL de este período contra el TOTAL
+        // de un período anterior de igual longitud — no el primer día contra el último día
+        // (eso es lo que hace deriveMetrics por defecto, pensado para el mock, muy ruidoso con
+        // datos reales día a día).
+        const lengthDays = Math.round((to - from) / 86400000) + 1;
+        const prevTo = new Date(from); prevTo.setDate(prevTo.getDate() - 1);
+        const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate() - (lengthDays - 1));
+        const prevSpend = await fetchMetaSpendTotal(token, accountId, ymd(prevFrom), ymd(prevTo));
+        if (prevSpend != null && prevSpend > 0) {
+          metaRaw.trendPct = Math.round((metaRaw.spend - prevSpend) / prevSpend * 100);
+        }
+        metaLiveHierarchy = await fetchMetaHierarchy(token, accountId, sinceStr, untilStr);
       } catch (e) { metaError = e.message; }
     }
-    return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: scale(p.pinterest) }, weekly, metaLiveDays, metaError, metaLive: !!accountId };
+    return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: scale(p.pinterest), tiktok: scale(p.tiktok) }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy };
   }));
 }
 
@@ -886,7 +1029,10 @@ function deriveMetrics(raw) {
   const ctr = raw.impr > 0 ? +(raw.clicks/raw.impr*100).toFixed(2) : null;
   const cpa = raw.conv > 0 ? Math.round(raw.spend/raw.conv) : null;
   const trend = raw.trend || [];
-  const trendPct = (trend.length > 1 && trend[0] > 0) ? Math.round((trend[trend.length-1]-trend[0])/trend[0]*100) : 0;
+  // Si ya viene un trendPct calculado con datos reales (total del período vs. período anterior),
+  // se usa ese — más preciso que comparar el primer día contra el último del array de tendencia.
+  const trendPct = raw.trendPct != null ? raw.trendPct
+    : (trend.length > 1 && trend[0] > 0) ? Math.round((trend[trend.length-1]-trend[0])/trend[0]*100) : 0;
   return { spend: raw.spend, roas: raw.roas, conversiones: raw.conv, ctr, cpa, trend, trendPct };
 }
 function mergeRaw(a, b) {
@@ -964,14 +1110,22 @@ function clientCampaigns(c) {
 
 /* ===== lógica negocio ===== */
 const isLeads = c => c.objetivo === 'leads' || c.targetRoas === 0;
+function platformBudget(c, platform) {
+  const o = state.clientThresholds[c.metaId] || {};
+  const key = 'budget_' + platform;
+  if (o[key] != null) return o[key];
+  const def = (MOCK_PLANNED_BUDGET[c.metaId] || {})[platform];
+  return def != null ? def : null;
+}
 function effThresholds(c) {
   const th = state.thresholds, o = state.clientThresholds[c.metaId] || {};
   const roas = o.roas != null ? o.roas : (c.targetRoas > 0 ? c.targetRoas : th.roasMin);
   const cpa = o.cpa != null ? o.cpa : (c.targetCpa > 0 ? c.targetCpa : th.cpaMax);
   const budget = o.budget != null ? o.budget : c.presupuesto;
   const convGoal = o.convGoal != null ? o.convGoal : (cpa > 0 && budget > 0 ? Math.round(budget / cpa) : null);
+  const budgetByPlatform = { meta: platformBudget(c,'meta'), google: platformBudget(c,'google'), pinterest: platformBudget(c,'pinterest'), tiktok: platformBudget(c,'tiktok') };
   return {
-    roas, cpa, budget, convGoal,
+    roas, cpa, budget, convGoal, budgetByPlatform,
     ctr: o.ctr != null ? o.ctr : th.ctrMin,
     pacing: o.pacing != null ? o.pacing : th.pacingMin,
     overridden: Object.keys(o).length > 0
@@ -981,6 +1135,37 @@ function roasStatus(roas, target) { if (!target || target <= 0 || roas == null) 
 function cpaStatus(cpa, target) { if (!target || target <= 0 || cpa == null) return 'na'; if (cpa <= target) return 'good'; if (cpa <= 1.4*target) return 'warn'; return 'bad'; }
 function ctrStatus(ctr, min) { if (ctr == null) return 'na'; if (ctr >= min) return 'good'; if (ctr >= 0.8*min) return 'warn'; return 'bad'; }
 function statColor(s) { return s === 'good' ? 'var(--green)' : s === 'warn' ? 'var(--yellow)' : s === 'bad' ? 'var(--red)' : 'var(--text)'; }
+function pacingWidgetHTML(c, platform) {
+  const planned = platformBudget(c, platform);
+  if (!planned || planned <= 0) return '';
+  const raw = (MOCK_PLATFORMS[c.metaId] || {})[platform];
+  const spendToDate = raw ? raw.spend : 0;
+  if (spendToDate <= 0) return '';
+  // "this_month" en el mock representa un mes parcial — su fracción respecto a un mes completo
+  // ya está definida por PERIOD_FACTOR (this_month vs last_month), así que reusamos esa relación
+  // en vez de asumir el día calendario real, que no está calibrado contra estos montos.
+  const elapsedFrac = PERIOD_FACTOR.this_month / PERIOD_FACTOR.last_month;
+  const pct = Math.round(spendToDate/planned*100);
+  const expectedPct = Math.round(elapsedFrac*100);
+  const projected = Math.round(spendToDate/elapsedFrac);
+  const projectedPct = Math.round(projected/planned*100);
+  const now = new Date();
+  let statusLabel, statusColor;
+  if (projectedPct >= 90 && projectedPct <= 110) { statusLabel = 'en línea con el plan'; statusColor = 'var(--green)'; }
+  else if (projectedPct < 90) { statusLabel = 'por debajo del plan'; statusColor = 'var(--yellow)'; }
+  else { statusLabel = 'por encima del plan'; statusColor = 'var(--red)'; }
+  const monthName = now.toLocaleDateString('es-AR', { month: 'long' });
+  return `<div class="exec-sub">Pacing del mes</div>
+  <div class="chart-box chart-box-compact">
+    <div class="chart-title">Pacing de ${esc(monthName)} — ${PLATFORM_LABEL[platform]}</div>
+    <div class="pacing-row"><span>Gastado: <b>${fmtMoney(spendToDate)}</b> de ${fmtMoney(planned)} planificado</span><span class="pacing-pct" style="color:${statusColor}">${pct}%</span></div>
+    <div class="pacing-track">
+      <div class="pacing-fill" style="width:${Math.min(100,pct)}%;background:${statusColor}"></div>
+      <div class="target-tick" style="left:${Math.min(100,expectedPct)}%" title="Ritmo esperado a día de hoy: ${expectedPct}%"></div>
+    </div>
+    <div class="pacing-projection">Proyección de cierre: <b>${fmtMoney(projected)}</b> (${projectedPct}% del plan) — <span style="color:${statusColor}">${statusLabel}</span></div>
+  </div>`;
+}
 function classifyHealth(c, m) {
   if (c.status !== 'Activo') return null;
   if (!m || m.spend === 0) return 'red';
@@ -1084,9 +1269,8 @@ function renderAlertReasons() {
   host.innerHTML = `<div class="reasons">` + withAlerts.map(({c, alerts}) => {
     const sev = alerts.some(a => a.sev === 'red') ? 'red' : 'yellow';
     const conds = alerts.map(a => `<span class="cond-tag ${a.sev==='yellow'?'warn':''}">${esc(a.cond)}</span>`).join('');
-    return `<div class="reasons-row"><span class="rsev ${sev}"></span><span class="rname">${esc(c.nombre)} <span class="rcat">· Cat ${c.categoria} · ${esc(c.owner)}</span></span><span class="conds">${conds}</span><button class="btn btn-sm btn-primary ar-plan" style="margin-left:auto" data-client="${c.metaId}">Generar plan de acción</button></div>`;
+    return `<div class="reasons-row"><span class="rsev ${sev}"></span><span class="rname">${esc(c.nombre)} <span class="rcat">· Cat ${c.categoria} · ${esc(c.owner)}</span></span><span class="conds">${conds}</span></div>`;
   }).join('') + `</div>`;
-  host.querySelectorAll('.ar-plan').forEach(b => b.addEventListener('click', () => openPlanModal(b.dataset.client)));
 }
 
 /* ===== 3. TABLERO CLIENTES ===== */
@@ -1211,6 +1395,17 @@ function umbralesBody(c) {
         <button class="btn btn-primary btn-sm" id="thcSave">Guardar</button>
         <button class="btn btn-sm" id="thcReset">Restablecer</button>
       </div>
+    </div>
+    <div class="th-box">
+      <div class="th-title"><svg class="ico-sm ico-14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.7" y="3.3" width="14.6" height="13.4" rx="1.5"/><path d="M2.7 8h14.6M6.3 3.3v3M13.7 3.3v3"/></svg> Presupuesto planificado del mes, por plataforma</div>
+      <div class="th-grid">
+        <div class="field"><label>Meta ($)</label><input class="input num" id="thcBudgetMeta" type="number" step="1000" value="${platformBudget(c,'meta') || ''}" placeholder="sin plan"></div>
+        <div class="field"><label>Google Ads ($)</label><input class="input num" id="thcBudgetGoogle" type="number" step="1000" value="${platformBudget(c,'google') || ''}" placeholder="sin plan"></div>
+        <div class="field"><label>Pinterest ($)</label><input class="input num" id="thcBudgetPinterest" type="number" step="1000" value="${platformBudget(c,'pinterest') || ''}" placeholder="sin plan"></div>
+        <div class="field"><label>TikTok Ads ($)</label><input class="input num" id="thcBudgetTiktok" type="number" step="1000" value="${platformBudget(c,'tiktok') || ''}" placeholder="sin plan"></div>
+        <button class="btn btn-primary btn-sm" id="thcBudgetSave">Guardar</button>
+      </div>
+      <p style="color:var(--text-faint);font-size:11.5px;margin:8px 0 0">Se usa para mostrar el pacing del mes (gastado vs. planificado) en cada pestaña de plataforma del Dashboard Cliente.</p>
     </div>`;
 }
 function wireUmbralesForm() {
@@ -1235,6 +1430,17 @@ function wireUmbralesForm() {
   if (reset) reset.addEventListener('click', () => {
     delete state.clientThresholds[c.metaId]; localStorage.setItem(LS_CLIENT, JSON.stringify(state.clientThresholds));
     toast(`Umbrales de ${c.nombre} restablecidos`); renderAll();
+  });
+  const budgetSave = document.getElementById('thcBudgetSave');
+  if (budgetSave) budgetSave.addEventListener('click', () => {
+    const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
+    const o = state.clientThresholds[c.metaId] || {};
+    ['meta','google','pinterest','tiktok'].forEach(p => {
+      const v = num('thcBudget' + p.charAt(0).toUpperCase() + p.slice(1));
+      if (v != null) o['budget_' + p] = v; else delete o['budget_' + p];
+    });
+    state.clientThresholds[c.metaId] = o; localStorage.setItem(LS_CLIENT, JSON.stringify(state.clientThresholds));
+    toast(`Presupuesto planificado de ${c.nombre} guardado`); renderAll();
   });
 }
 
@@ -1325,75 +1531,6 @@ function renderCampaignBoard() {
   document.getElementById('campCampSel').addEventListener('change', e => { state.campCampaign = e.target.value; state.campAdset='all'; state.campAd='all'; renderCampaignBoard(); });
   document.getElementById('campAdsetSel').addEventListener('change', e => { state.campAdset = e.target.value; state.campAd='all'; renderCampaignBoard(); });
   document.getElementById('campAdSel').addEventListener('change', e => { state.campAd = e.target.value; renderCampaignBoard(); });
-}
-
-/* ===== 6. PLAN DE ACCIÓN ===== */
-const ACTION_DETAIL = {
-  'ROAS bajo': [
-    'Pausar audiencias, ubicaciones y horarios con ROAS por debajo del promedio de la cuenta.',
-    'Identificar las creatividades de peor ROAS y reemplazarlas; escalar presupuesto en las ganadoras.',
-    'Reasignar presupuesto entre ad sets hacia los de mejor retorno.',
-    'Verificar el tracking de compras y el valor de conversión (pixel/CAPI, deduplicación).'
-  ],
-  'CTR bajo': [
-    'Rotar creatividades: pausar las de menor CTR y subir 2-3 variantes nuevas (hook, copy, formato).',
-    'Probar formatos distintos (video corto, carrusel, UGC).',
-    'Revisar la frecuencia: si supera ~2.5, ampliar audiencia o refrescar creativos (fatiga).',
-    'Alinear oferta y copy del anuncio con la intención de la audiencia.'
-  ],
-  'ROAS + CTR bajos': [
-    'Revisión completa de la cuenta: estructura de campañas, audiencias y creatividades.',
-    'Pausar el cuartil inferior (ad sets y anuncios de peor desempeño) y concentrar presupuesto.',
-    'Replantear ángulos creativos y la oferta; testear nuevos públicos.',
-    'Auditar embudo y tracking (landing, velocidad, checkout, eventos).'
-  ],
-  'CPA elevado': [
-    'Pausar segmentos y ubicaciones con CPA por encima del target.',
-    'Auditar el embudo de conversión: landing, formulario, velocidad y fricción en el checkout.',
-    'Revisar la coherencia anuncio → landing (mensaje y oferta).',
-    'Optimizar la campaña hacia conversiones de mayor intención y revisar la estrategia de puja.'
-  ],
-  'Subpacing': [
-    'Subir los límites de presupuesto diario en las campañas activas.',
-    'Revisar ad sets en "learning limited", pausados o con errores de entrega.',
-    'Ampliar audiencias o sumar ubicaciones si el delivery está limitado.',
-    'Redistribuir el presupuesto restante del mes para recuperar el pacing.'
-  ],
-  'Sin gasto': [
-    'Verificar que las campañas estén activas (no en borrador, pausa ni fuera de fecha).',
-    'Revisar rechazos de anuncios y el estado de la cuenta publicitaria.',
-    'Confirmar el método de pago y que no se haya alcanzado el límite de gasto de la cuenta.',
-    'Chequear la programación y los límites de presupuesto diario.'
-  ],
-  'Posible píxel roto': [
-    'Verificar en el administrador de eventos que el píxel/Conversions API esté recibiendo eventos de conversión.',
-    'Confirmar que el evento de conversión configurado en la campaña coincida con el que dispara la página.',
-    'Revisar cambios recientes en la landing (rediseño, dominio, cookies/consentimiento) que puedan haber roto el tracking.',
-    'Mientras se soluciona, evitar escalar presupuesto en esta cuenta — el algoritmo está optimizando sin datos de conversión reales.'
-  ],
-  'Fatiga de creatividad': [
-    'Rotar las creatividades actuales: pausar las más viejas y subir 2-3 variantes nuevas (hook, copy, formato).',
-    'Ampliar la segmentación o sumar audiencias nuevas para bajar la frecuencia.',
-    'Revisar si conviene pasar a una campaña de remarketing separada para no sobre-impactar a la misma audiencia.',
-    'Considerar bajar el presupuesto diario transitoriamente si la audiencia es chica para el nivel de gasto actual.'
-  ]
-};
-function openPlanModal(metaId) {
-  const c = state.clients.find(x => x.metaId === metaId); if (!c) return;
-  const alerts = computeAlerts(c);
-  const lines = [];
-  alerts.forEach(a => { lines.push(`${a.cond}: ${a.rec}`); (ACTION_DETAIL[a.cond] || []).forEach(s => lines.push('• ' + s)); lines.push(''); });
-  document.getElementById('pmTitle').textContent = 'Plan de acción — ' + c.nombre;
-  document.getElementById('pmConds').innerHTML = alerts.map(a => `<span class="cond-tag ${a.sev==='yellow'?'warn':''}">${esc(a.cond)}</span>`).join(' ');
-  document.getElementById('pmText').value = lines.join('\n').trim();
-  document.getElementById('planModal').classList.add('show');
-}
-function closePlanModal() { document.getElementById('planModal').classList.remove('show'); }
-function copyPlanText() {
-  const text = document.getElementById('pmText').value;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => toast('Plan copiado al portapapeles')).catch(() => toast('No se pudo copiar'));
-  } else toast('No se pudo copiar');
 }
 
 function teamMembers() { const s = new Set(); state.clients.forEach(c => { s.add(c.owner); c.coOwners.forEach(o => s.add(o)); }); return [...s].sort(); }
@@ -1718,14 +1855,14 @@ function groupAgg(items, keyFn) {
     if (m.roas != null) { g.roasNum += m.roas*m.spend; g.roasDen += m.spend; }
   });
   return Object.values(groups).map(g => ({
-    name: g.name, spend: g.spend, conv: g.conv,
+    name: g.name, spend: g.spend, conv: g.conv, impr: g.impr, clicks: g.clicks,
     roas: g.roasDen>0 ? +(g.roasNum/g.roasDen).toFixed(2) : null,
     ctr: g.impr>0 ? +(g.clicks/g.impr*100).toFixed(2) : null
   })).sort((a,b) => b.spend-a.spend);
 }
-function campaignTypeAgg(c) { return groupAgg(clientCampaignsMeta(c), cm => cm.name.split('—')[0].trim()); }
-function adsetTypeAgg(c) { return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets), a => a.name); }
-function adTypeAgg(c) { return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets).flatMap(a => a.ads), d => d.name.replace(/\s*\d+$/, '')); }
+function campaignTypeAgg(c) { if (c.metaLiveHierarchy) return c.metaLiveHierarchy.campaigns; return groupAgg(clientCampaignsMeta(c), cm => cm.name.split('—')[0].trim()); }
+function adsetTypeAgg(c) { if (c.metaLiveHierarchy) return c.metaLiveHierarchy.adsets; return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets), a => a.name); }
+function adTypeAgg(c) { if (c.metaLiveHierarchy) return c.metaLiveHierarchy.ads; return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets).flatMap(a => a.ads), d => d.name.replace(/\s*\d+$/, '')); }
 function synthTrend(seedKey, current, points) {
   if (current == null) return null;
   const seed = hashStr(seedKey);
@@ -1851,7 +1988,7 @@ function weeklyForPlatform(c, platform) {
 function dailyTrendData(c, fromDate, days, platform) {
   if (platform !== 'google' && platform !== 'pinterest' && c.metaLiveDays) return liveDaysInRange(c, fromDate, days);
   const w = weeklyForPlatform(c, platform); if (!w || !w.gasto || w.gasto.every(v => !v)) return null;
-  const seedTag = platform === 'google' ? 'gd' : platform === 'pinterest' ? 'pd' : 'd';
+  const seedTag = platform === 'google' ? 'gd' : platform === 'pinterest' ? 'pd' : platform === 'tiktok' ? 'td' : 'd';
   const items = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(fromDate); d.setDate(d.getDate()+i);
@@ -1869,9 +2006,9 @@ function dailyTrendData(c, fromDate, days, platform) {
 }
 function trendLayout(c, platform) {
   const leads = isLeads(c);
-  const invLabel = (platform === 'google' || platform === 'pinterest') ? 'Costo' : 'Inversión';
+  const invLabel = (platform === 'google' || platform === 'pinterest' || platform === 'tiktok') ? 'Costo' : 'Inversión';
   const rightLabel = leads ? 'CPA' : 'ROAS';
-  const barLabel = leads ? 'Leads' : ((platform === 'google' || platform === 'pinterest') ? 'Conversiones' : 'Compras');
+  const barLabel = leads ? 'Leads' : ((platform === 'google' || platform === 'pinterest' || platform === 'tiktok') ? 'Conversiones' : 'Compras');
   const rightFmt = leads ? fmtMoney : fmtRoas;
   const rightAxisFmt = leads ? fmtCompactMoney : fmtRoas;
   const { from, to } = currentPeriodDates();
@@ -1895,7 +2032,7 @@ function trendLayout(c, platform) {
 }
 function trendChartSectionHTML(c, platform) {
   const L = trendLayout(c, platform);
-  const elId = platform === 'google' ? 'gTrendSvg' : platform === 'pinterest' ? 'pTrendSvg' : 'trendSvg';
+  const elId = platform === 'google' ? 'gTrendSvg' : platform === 'pinterest' ? 'pTrendSvg' : platform === 'tiktok' ? 'tTrendSvg' : 'trendSvg';
   let body;
   if (!L.items) {
     body = `<div class="empty-ok">Sin datos históricos para este cliente.</div>`;
@@ -1976,7 +2113,7 @@ function trendChartSectionHTML(c, platform) {
     </div>`;
 }
 function wireTrendChart(c, platform) {
-  const elId = platform === 'google' ? 'gTrendSvg' : platform === 'pinterest' ? 'pTrendSvg' : 'trendSvg';
+  const elId = platform === 'google' ? 'gTrendSvg' : platform === 'pinterest' ? 'pTrendSvg' : platform === 'tiktok' ? 'tTrendSvg' : 'trendSvg';
   const svg = document.getElementById(elId); if (!svg) return;
   const L = trendLayout(c, platform); if (!L.items) return;
   const { items, n, xFor, yLeft, yRight, gasto, rightSeries, conv, padL, plotW, VB_W, rightFmt } = L;
@@ -2039,6 +2176,59 @@ function statusFnForMetric(metric, target) {
   if (metric === 'ctr') return it => ctrStatus(CAMP_VALUE_FN.ctr(it), target);
   return null;
 }
+function metricTableHTML(items, tableId, leads) {
+  if (!items.length) return `<div class="empty-ok">Sin datos para este período.</div>`;
+  const withCpa = items.map(it => ({ ...it, costPerConv: it.conv > 0 ? Math.round(it.spend/it.conv) : null }));
+  if (!state.tblSort) state.tblSort = {};
+  if (!state.tblSort[tableId]) state.tblSort[tableId] = { key: 'spend', dir: 'desc' };
+  const { key: sk, dir: sd } = state.tblSort[tableId];
+  const sorted = sortRows(withCpa, sk, sd, ['name']);
+  const rows = sorted.map(it => `<tr>
+      <td class="mtbl-name" title="${esc(it.name)}">${esc(it.name)}</td>
+      <td class="right col-impr">${fmtInt(it.impr)}</td>
+      <td class="right col-clicks">${fmtInt(it.clicks)}</td>
+      <td class="right col-ctr">${it.ctr!=null?fmtPct(it.ctr):'—'}</td>
+      <td class="right">${fmtMoney(it.spend)}</td>
+      <td class="right col-conv">${fmtInt(it.conv)}</td>
+      <td class="right col-roas">${leads?(it.costPerConv!=null?fmtMoney(it.costPerConv):'—'):(it.roas!=null?fmtRoas(it.roas):'—')}</td>
+      <td class="right">${it.costPerConv!=null?fmtMoney(it.costPerConv):'—'}</td>
+    </tr>`).join('');
+  const totals = items.reduce((a,it) => ({
+    impr: a.impr+(it.impr||0), clicks: a.clicks+(it.clicks||0), spend: a.spend+it.spend, conv: a.conv+it.conv,
+    revenue: a.revenue + (it.roas!=null ? it.spend*it.roas : 0)
+  }), { impr:0, clicks:0, spend:0, conv:0, revenue:0 });
+  const totalCtr = totals.impr>0 ? totals.clicks/totals.impr*100 : null;
+  const totalRoas = totals.spend>0 ? totals.revenue/totals.spend : null;
+  const totalCpa = totals.conv>0 ? Math.round(totals.spend/totals.conv) : null;
+  return `<div class="table-wrap scroll-tbl" style="margin-top:0"><table class="compact" id="${tableId}">
+    <thead><tr>
+      ${sortTh('Nombre','name','mtbl-name',sk,sd)}
+      ${sortTh('Impr.','impr','right col-impr',sk,sd)}
+      ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
+      ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
+      ${sortTh('Gasto','spend','right',sk,sd)}
+      ${sortTh('Conv.','conv','right col-conv',sk,sd)}
+      ${sortTh(leads?'CPA':'ROAS','roas','right col-roas',sk,sd)}
+      ${sortTh('Costo/Conv','costPerConv','right',sk,sd)}
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr class="tbl-total-row">
+      <td>Total</td>
+      <td class="right col-impr">${fmtInt(totals.impr)}</td>
+      <td class="right col-clicks">${fmtInt(totals.clicks)}</td>
+      <td class="right col-ctr">${totalCtr!=null?fmtPct(totalCtr):'—'}</td>
+      <td class="right">${fmtMoney(totals.spend)}</td>
+      <td class="right col-conv">${fmtInt(totals.conv)}</td>
+      <td class="right col-roas">${leads?(totalCpa!=null?fmtMoney(totalCpa):'—'):(totalRoas!=null?fmtRoas(totalRoas):'—')}</td>
+      <td class="right">${totalCpa!=null?fmtMoney(totalCpa):'—'}</td>
+    </tr></tfoot>
+  </table></div>`;
+}
+function viewToggleLink(id) {
+  const mode = (state.chartViewMode && state.chartViewMode[id]) || 'chart';
+  const label = mode === 'chart' ? 'Ver tabla completa' : 'Ver gráfico';
+  return `<button class="btn-link-sm" data-toggle-view="${id}">${label}</button>`;
+}
 function chartsSectionHTML(c) {
   const leads = isLeads(c);
   const campAgg = campaignTypeAgg(c), adsetAgg = adsetTypeAgg(c), adAgg = adTypeAgg(c);
@@ -2084,15 +2274,23 @@ function chartsSectionHTML(c) {
     return `<option value="${k}" ${adPerfMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
   }).join('');
 
+  if (!state.chartViewMode) state.chartViewMode = {};
+  const campMode = state.chartViewMode.camp || 'chart';
+  const adsetMode = state.chartViewMode.adset || 'chart';
+  const adMode = state.chartViewMode.ad || 'chart';
+
   return `
     <div class="exec-sub">Performance por campaña</div>
     <div class="chart-grid-2">
       <div class="chart-box">
         <div class="chart-title-row">
           <div class="chart-title">${cm.label} por campaña</div>
-          <select class="select select-sm" id="campMetricSel">${campMetricOpts}</select>
+          <div class="chart-title-actions">
+            ${campMode==='chart'?`<select class="select select-sm" id="campMetricSel">${campMetricOpts}</select>`:''}
+            ${viewToggleLink('camp')}
+          </div>
         </div>
-        ${campChart}
+        ${campMode==='chart' ? campChart : metricTableHTML(campAgg, 'campTable', leads)}
       </div>
       <div class="chart-box"><div class="chart-title">Distribución del presupuesto</div>${budgetDonut}</div>
     </div>
@@ -2100,16 +2298,22 @@ function chartsSectionHTML(c) {
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
         <div class="chart-title">${am.label} por grupo de anuncios</div>
-        <select class="select select-sm" id="adsetMetricSel">${adsetMetricOpts}</select>
+        <div class="chart-title-actions">
+          ${adsetMode==='chart'?`<select class="select select-sm" id="adsetMetricSel">${adsetMetricOpts}</select>`:''}
+          ${viewToggleLink('adset')}
+        </div>
       </div>
-      ${roasByAdset}
+      ${adsetMode==='chart' ? roasByAdset : metricTableHTML(adsetAgg, 'adsetTable', leads)}
     </div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
         <div class="chart-title">${apm.label} por anuncio</div>
-        <select class="select select-sm" id="adPerfMetricSel">${adPerfMetricOpts}</select>
+        <div class="chart-title-actions">
+          ${adMode==='chart'?`<select class="select select-sm" id="adPerfMetricSel">${adPerfMetricOpts}</select>`:''}
+          ${viewToggleLink('ad')}
+        </div>
       </div>
-      ${adPerf}
+      ${adMode==='chart' ? adPerf : metricTableHTML(adAgg, 'adTable', leads)}
     </div>`;
 }
 
@@ -2170,6 +2374,7 @@ function googleAdsSectionHTML(c) {
   return `
     <div class="exec-sub">Resumen · Google Ads</div>
     <div class="exec-grid">${kpis}</div>
+    ${pacingWidgetHTML(c, 'google')}
     ${trendChartSectionHTML(c, 'google')}
     <div class="chart-grid-2">
       <div class="chart-box"><div class="chart-title">Mezcla por tipo de campaña</div>${typeDonut}</div>
@@ -2318,6 +2523,7 @@ function pinterestSectionHTML(c) {
   return `
     <div class="exec-sub">Resumen · Pinterest Ads</div>
     <div class="exec-grid">${kpis}</div>
+    ${pacingWidgetHTML(c, 'pinterest')}
     ${trendChartSectionHTML(c, 'pinterest')}
     <div class="exec-sub">Performance por campaña</div>
     <div class="chart-box chart-box-wide">
@@ -2363,6 +2569,120 @@ function topPinsTableHTML(pins) {
     <tbody>${rows}</tbody>
   </table></div>`;
 }
+function tiktokSectionHTML(c) {
+  const R = c.platforms.tiktok;
+  if (!R || R.spend <= 0) {
+    return `<div class="fnl" style="text-align:center;color:var(--text-faint)">Sin inversión de TikTok Ads registrada para este cliente en el período.</div>`;
+  }
+  const leadsT = isLeads(c);
+  const t = effThresholds(c);
+  const m = deriveMetrics(R);
+  const reach = R.impr>0 ? Math.round(R.impr/2.6) : 0;
+  const freq = reach>0 ? R.impr/reach : null;
+  const cpc = R.clicks>0 ? R.spend/R.clicks : null;
+  const cpm = R.impr>0 ? R.spend/R.impr*1000 : null;
+  const revenue = m.roas!=null ? Math.round(R.spend*m.roas) : null;
+
+  const kpis = [
+    execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', null, R.trend),
+    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leadsT?'objetivo leads':'revenue atribuido', 'green', null, null),
+    execCard('ROAS', leadsT?'—':(m.roas!=null?fmtRoas(m.roas):'—'), leadsT?'obj. leads':'retorno', 'green', null, null),
+    execCard('CPA', m.cpa!=null?fmtMoney(m.cpa):'—', leadsT?'costo por lead':'costo por compra', 'amber', null, null),
+    execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, null),
+    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', null, null),
+    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', null, null),
+    execCard('Alcance', fmtInt(reach), 'personas', 'purple', null, null),
+    execCard('Impresiones', fmtInt(R.impr), '', 'purple', null, null),
+    execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', null, null)
+  ].join('');
+
+  const vSeed = hashStr(c.metaId+'ttvid');
+  const viewStartRate = 0.88 + rnd(vSeed)*0.10;
+  const videoViews = Math.round(R.impr * viewStartRate);
+  const view6Rate = 30 + rnd(vSeed+1)*25;
+  const views6s = Math.round(videoViews * view6Rate/100);
+  const vtr25 = 55 + rnd(vSeed+2)*15;
+  const vtr50 = vtr25 * (0.55+rnd(vSeed+3)*0.15);
+  const vtr75 = vtr50 * (0.55+rnd(vSeed+4)*0.15);
+  const vtr100 = vtr75 * (0.45+rnd(vSeed+5)*0.2);
+  const avgWatch = 3 + rnd(vSeed+6)*6;
+  const engRate = 2.5 + rnd(vSeed+7)*5.5;
+
+  const videoKpis = [
+    execCard('Reproducciones de video', fmtInt(videoViews), '', 'blue', null, null),
+    execCard('Reproducciones de 6 seg.', fmtInt(views6s), '', '', null, null),
+    execCard('Tasa de reproducción completa', fmtPct(vtr100), 'VCR', 'green', null, null),
+    execCard('Tiempo prom. de reproducción', avgWatch.toFixed(1)+'s', '', '', null, null),
+    execCard('Tasa de engagement', fmtPct(engRate), 'likes + comentarios + shares', 'green', null, null)
+  ].join('');
+
+  const vStages = [
+    ['Reproducciones', videoViews],
+    ['Vieron 25%', Math.round(videoViews*vtr25/100)],
+    ['Vieron 50%', Math.round(videoViews*vtr50/100)],
+    ['Vieron 75%', Math.round(videoViews*vtr75/100)],
+    ['Vieron 100%', Math.round(videoViews*vtr100/100)]
+  ];
+  const vColors = ['#00EABD','#5B9BFF','#A88AFF','#F2B441','#FF6B66'];
+  const vMax = videoViews || 1;
+  const videoFunnelRows = vStages.map((s,i) => {
+    const w2 = Math.max(4, (s[1]/vMax)*100);
+    const col = vColors[i] || vColors[vColors.length-1];
+    const prev = i>0 ? vStages[i-1][1] : 0;
+    const cv = i>0 ? `<div class="fnl-conv">↓ <b>${prev>0?(s[1]/prev*100).toFixed(1):'0.0'}%</b> de ${esc(vStages[i-1][0]).toLowerCase()}</div>` : '';
+    return `${cv}<div class="fnl-stage"><div class="fnl-row"><span class="fnl-name">${esc(s[0])}</span><span class="fnl-count num">${fmtInt(s[1])}</span></div><div class="fnl-bar"><div class="fnl-fill" style="width:${w2.toFixed(1)}%;background:${col}"></div></div></div>`;
+  }).join('');
+
+  if (!state.ttCampChartMetric) state.ttCampChartMetric = 'roas';
+  let ttCampMetric = state.ttCampChartMetric;
+  if (leadsT && (ttCampMetric === 'roas' || ttCampMetric === 'ventas')) ttCampMetric = 'gasto';
+  const tcm = CAMP_METRICS[ttCampMetric];
+  const ttCampAgg = generateTikTokCampaigns(c);
+  const ttCampTarget = targetForMetric(ttCampMetric, t);
+  const ttCampChart = rankedBarsHTML(ttCampAgg, { value: CAMP_VALUE_FN[ttCampMetric], fmt: tcm.fmt, lowerIsBetter: ttCampMetric === 'cpa', target: ttCampTarget, status: statusFnForMetric(ttCampMetric, ttCampTarget), trend: it => synthTrend(`${c.metaId}|ttcamp|${ttCampMetric}|${it.name}`, CAMP_VALUE_FN[ttCampMetric](it), 6), subtitle: it => `Gasto ${fmtCompactMoney(it.spend)} · Conv. ${fmtInt(it.conv)}` });
+  const ttCampMetricOpts = Object.entries(CAMP_METRICS).filter(([k]) => k !== 'ctr').map(([k,v]) => {
+    const disabled = leadsT && (k === 'roas' || k === 'ventas');
+    return `<option value="${k}" ${ttCampMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
+  }).join('');
+
+  if (!state.ttVideoMetric) state.ttVideoMetric = 'roas';
+  let ttVideoMetric = state.ttVideoMetric;
+  if (leadsT && (ttVideoMetric === 'roas' || ttVideoMetric === 'ventas')) ttVideoMetric = 'gasto';
+  const tvm = CAMP_METRICS[ttVideoMetric];
+  const videosAgg = generateTikTokVideos(c);
+  const ttVideoTarget = targetForMetric(ttVideoMetric, t);
+  const topVideosChart = verticalBarsHTML(videosAgg, { value: CAMP_VALUE_FN[ttVideoMetric], fmt: tvm.fmt, lowerIsBetter: ttVideoMetric === 'cpa', target: ttVideoTarget, status: statusFnForMetric(ttVideoMetric, ttVideoTarget), trend: it => synthTrend(`${c.metaId}|ttvidchart|${ttVideoMetric}|${it.name}`, CAMP_VALUE_FN[ttVideoMetric](it), 6), subtitle: it => `Reproducciones ${fmtInt(it.views)} · Compl. ${fmtPct(it.vcr)}` });
+  const ttVideoMetricOpts = Object.entries(CAMP_METRICS).map(([k,v]) => {
+    const disabled = leadsT && (k === 'roas' || k === 'ventas');
+    return `<option value="${k}" ${ttVideoMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
+  }).join('');
+
+  return `
+    <div class="exec-sub">Resumen ejecutivo · Performance</div>
+    <div class="exec-grid">${kpis}</div>
+    <div class="exec-sub">Resumen ejecutivo · Video</div>
+    <div class="exec-grid conv-grid">${videoKpis}</div>
+    ${pacingWidgetHTML(c, 'tiktok')}
+    ${trendChartSectionHTML(c, 'tiktok')}
+    <div class="exec-sub">Embudo de reproducción de video</div>
+    <div class="fnl">${videoFunnelRows}</div>
+    <div class="exec-sub">Performance por campaña</div>
+    <div class="chart-box chart-box-wide">
+      <div class="chart-title-row">
+        <div class="chart-title">${tcm.label} por campaña</div>
+        <select class="select select-sm" id="ttCampMetricSel">${ttCampMetricOpts}</select>
+      </div>
+      ${ttCampChart}
+    </div>
+    <div class="exec-sub">Top videos</div>
+    <div class="chart-box chart-box-wide">
+      <div class="chart-title-row">
+        <div class="chart-title">${tvm.label} por video</div>
+        <select class="select select-sm" id="ttVideoMetricSel">${ttVideoMetricOpts}</select>
+      </div>
+      ${topVideosChart}
+    </div>`;
+}
 
 function renderCliente() {
   const host = document.getElementById('viewCliente');
@@ -2383,6 +2703,7 @@ function renderCliente() {
       <button data-view="meta" class="${state.cliView==='meta'?'active':''}">Meta</button>
       <button data-view="google" class="${state.cliView==='google'?'active':''}">Google Ads</button>
       <button data-view="pinterest" class="${state.cliView==='pinterest'?'active':''}">Pinterest</button>
+      <button data-view="tiktok" class="${state.cliView==='tiktok'?'active':''}">TikTok Ads</button>
     </div>`;
   const head = `<div class="cli-head">
       <h2>${c?esc(c.nombre):'Cliente'}</h2>
@@ -2406,6 +2727,8 @@ function renderCliente() {
     const ams = document.getElementById('adsetMetricSel'); if (ams) ams.addEventListener('change', e => { state.adsetChartMetric = e.target.value; renderCliente(); });
     const apms = document.getElementById('adPerfMetricSel'); if (apms) apms.addEventListener('change', e => { state.adPerfMetric = e.target.value; renderCliente(); });
     const pcms = document.getElementById('pinCampMetricSel'); if (pcms) pcms.addEventListener('change', e => { state.pinCampChartMetric = e.target.value; renderCliente(); });
+    const tcms = document.getElementById('ttCampMetricSel'); if (tcms) tcms.addEventListener('change', e => { state.ttCampChartMetric = e.target.value; renderCliente(); });
+    const tvms = document.getElementById('ttVideoMetricSel'); if (tvms) tvms.addEventListener('change', e => { state.ttVideoMetric = e.target.value; renderCliente(); });
     document.querySelectorAll('#kwTable thead th.sortable').forEach(th => th.addEventListener('click', () => {
       const key = th.dataset.sort;
       if (state.kwSortKey === key) state.kwSortDir = state.kwSortDir === 'asc' ? 'desc' : 'asc';
@@ -2424,7 +2747,24 @@ function renderCliente() {
       else { state.pinSortKey = key; state.pinSortDir = key === 'name' ? 'asc' : 'desc'; }
       renderCliente();
     }));
-    if (c) wireTrendChart(c, state.cliView === 'google' ? 'google' : state.cliView === 'pinterest' ? 'pinterest' : 'meta');
+    document.querySelectorAll('[data-toggle-view]').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.toggleView;
+      if (!state.chartViewMode) state.chartViewMode = {};
+      state.chartViewMode[id] = (state.chartViewMode[id] || 'chart') === 'chart' ? 'table' : 'chart';
+      renderCliente();
+    }));
+    ['campTable','adsetTable','adTable'].forEach(tid => {
+      document.querySelectorAll(`#${tid} thead th.sortable`).forEach(th => th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (!state.tblSort) state.tblSort = {};
+        if (!state.tblSort[tid]) state.tblSort[tid] = { key: 'spend', dir: 'desc' };
+        const cur = state.tblSort[tid];
+        if (cur.key === key) cur.dir = cur.dir === 'asc' ? 'desc' : 'asc';
+        else { cur.key = key; cur.dir = key === 'name' ? 'asc' : 'desc'; }
+        renderCliente();
+      }));
+    });
+    if (c) wireTrendChart(c, state.cliView === 'google' ? 'google' : state.cliView === 'pinterest' ? 'pinterest' : state.cliView === 'tiktok' ? 'tiktok' : 'meta');
   };
 
   if (!c) {
@@ -2437,6 +2777,10 @@ function renderCliente() {
   }
   if (state.cliView === 'pinterest') {
     host.innerHTML = head + pinterestSectionHTML(c);
+    wire(); return;
+  }
+  if (state.cliView === 'tiktok') {
+    host.innerHTML = head + tiktokSectionHTML(c);
     wire(); return;
   }
   const r = c.platforms.meta;
@@ -2522,6 +2866,7 @@ function renderCliente() {
   host.innerHTML = head + heroHTML +
     `<div class="exec-sub">Resumen ejecutivo · Performance</div><div class="exec-grid">${perf}</div>` +
     `<div class="exec-sub">Resumen ejecutivo · Conversión</div><div class="exec-grid conv-grid">${conv}</div>` +
+    pacingWidgetHTML(c, 'meta') +
     trendChartSectionHTML(c, 'meta') +
     `<div class="exec-sub">Embudo de conversión ${vsPrev}</div><div class="fnl">${funnelRows}</div>` +
     chartsSectionHTML(c);
@@ -2580,9 +2925,6 @@ function wireEvents() {
   });
   document.getElementById('thReset').addEventListener('click', () => { state.thresholds = { ...DEFAULT_THRESHOLDS }; localStorage.removeItem(LS_GLOBAL); openThModal(); toast('Umbrales globales restablecidos'); renderAll(); });
   document.querySelectorAll('#topnav button[data-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
-  document.getElementById('pmCancel').addEventListener('click', closePlanModal);
-  document.getElementById('pmCopy').addEventListener('click', copyPlanText);
-  document.getElementById('planModal').addEventListener('click', e => { if (e.target.id === 'planModal') closePlanModal(); });
   document.getElementById('btnDemo').addEventListener('click', () => startApp(true));
   document.getElementById('btnConnect').addEventListener('click', () => {
     const a = document.getElementById('cfgAgency').value.trim(); if (a) state.agency = a;

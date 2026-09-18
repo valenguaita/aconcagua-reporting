@@ -313,6 +313,19 @@
   .cli-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0 4px; }
   .cli-head h2 { font-size: 18px; margin: 0; }
   .cli-head .select { min-width: 200px; }
+  .cli-combo { position: relative; display: inline-block; }
+  .cli-select-btn { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .cli-select-btn .dr-chev { flex: none; opacity: .55; transition: transform .15s ease; }
+  .cli-combo.open .cli-select-btn { border-color: var(--accent); }
+  .cli-combo.open .dr-chev { transform: rotate(180deg); }
+  .cli-combo-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; width: 260px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow-md); padding: 10px; display: none; }
+  .cli-combo-pop.show { display: block; }
+  .cli-combo-search { width: 100%; margin-bottom: 8px; }
+  .cli-combo-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .cli-combo-item { display: block; width: 100%; text-align: left; background: none; border: none; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .cli-combo-item:hover { background: var(--surface-2); }
+  .cli-combo-item.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .cli-combo-empty { padding: 10px; font-size: 12.5px; color: var(--text-faint); text-align: center; }
   .cli-note { font-size: 12px; color: var(--text-faint); margin: 0 0 4px; }
   .exec-sub { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-faint); margin: 28px 2px 12px; display: flex; align-items: center; gap: 6px; }
   .exec-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
@@ -366,6 +379,7 @@
   .chart-box > .rank-list, .chart-box > .crea-result-inner { align-items: stretch; justify-content: flex-start; }
   .chart-box > .vbar-list { flex: none; align-items: flex-end; justify-content: space-between; }
   .chart-box > .pacing-projection { flex: none; display: block; }
+  .chart-box > .table-wrap { flex: none; display: block; }
   .chart-box-compact { min-height: auto; }
   .chart-box > .btn:last-child { flex: none; display: inline-flex; }
   .bar-chart-svg { width: 100%; height: auto; }
@@ -477,6 +491,24 @@
 </head>
 <body>
 
+<div class="config-screen" id="loginScreen" style="display:none">
+  <div class="config-card">
+    <div class="brand">
+      <svg class="peak" viewBox="0 0 67 72" xmlns="http://www.w3.org/2000/svg"><path d="M8.21001 54.6L33.4 0L58.44 54.6L33.33 31.03L8.21001 54.6Z"/><path d="M5.49294e-06 71.82L6.22001 58.77L9.08001 58.28L12.52 54.21L15.18 53.58H16.82L19.56 52.95H23.21L25.51 50.6L28.17 49.35L31.92 47H34.15L36.3 47.94L38.18 48.25L39.9 50.44L40.21 51.38L41.15 51.85H42.09L44.12 53.88L48.19 54.19L54.29 58.26L57.73 58.89L63.05 64.37L66.42 71.8C66.42 71.8 52.09 64.3 33.32 64.49C25.6 64.65 16.3 65.81 6.33001 69.29C4.10001 70.07 1.99001 70.91 -0.00999451 71.79L5.49294e-06 71.82Z"/></svg>
+      <div class="wm"><span class="name">Aconcagua</span><span class="sub">Panel de clientes</span></div>
+    </div>
+    <h1>Ingresá con tu mail</h1>
+    <p class="subtitle">Te mandamos un link de acceso, sin contraseña. Si tu mail no fue invitado todavía, pedile acceso a quien administra Aconcagua.</p>
+    <div class="field"><label>Mail</label><input class="input" id="loginEmail" type="email" placeholder="vos@aconcagua.agency" autocomplete="email" /></div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btnSendLink">Enviar link de acceso</button>
+      <div class="divider">o</div>
+      <button class="btn" id="btnDemo">Ver demo con datos de ejemplo</button>
+    </div>
+    <p class="subtitle" id="loginStatus" style="display:none;margin-top:14px"></p>
+  </div>
+</div>
+
 <div class="config-screen" id="configScreen" style="display:none">
   <div class="config-card">
     <div class="brand">
@@ -485,14 +517,11 @@
     </div>
     <h1>Conectá tus fuentes de datos</h1>
     <p class="subtitle">Tus credenciales se guardan solo en este navegador (localStorage). No se envían a ningún servidor.</p>
-    <div class="field"><label>Meta — User Access Token</label><input class="input" id="cfgMetaToken" type="password" placeholder="EAAB…" autocomplete="off" /><span class="hint">Token de la API de Marketing de Meta.</span></div>
     <div class="field"><label>Google Sheet ID</label><input class="input" id="cfgSheetId" type="text" placeholder="1AbC…xyz" autocomplete="off" /><span class="hint">El ID que aparece en la URL del Sheet, entre /d/ y /edit.</span></div>
     <div class="field"><label>Google Sheets API Key</label><input class="input" id="cfgApiKey" type="password" placeholder="AIza…" autocomplete="off" /></div>
     <div class="field"><label>Nombre de la agencia (opcional)</label><input class="input" id="cfgAgency" type="text" placeholder="Aconcagua" autocomplete="off" /></div>
     <div class="actions">
       <button class="btn btn-primary" id="btnConnect">Conectar y cargar datos</button>
-      <div class="divider">o</div>
-      <button class="btn" id="btnDemo">Ver demo con datos de ejemplo</button>
     </div>
   </div>
 </div>
@@ -515,6 +544,7 @@
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost" id="btnReconfig" title="Reconfigurar"><span class="nav-ico"><svg class="ico-sm" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M10 12.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z"/><path d="M16.1 10c0-.36-.03-.71-.09-1.05l1.52-1.24-1.5-2.6-1.83.62a6.1 6.1 0 0 0-1.82-1.06L11.95 2.5h-3.9l-.43 1.87a6.1 6.1 0 0 0-1.83 1.06l-1.82-.62-1.5 2.6L4 8.95a6.2 6.2 0 0 0 0 2.1l-1.53 1.24 1.5 2.6 1.82-.62c.55.46 1.16.8 1.83 1.06l.43 1.87h3.9l.43-1.87a6.1 6.1 0 0 0 1.82-1.06l1.83.62 1.5-2.6-1.52-1.24c.06-.34.09-.7.09-1.05Z"/></svg></span><span class="nav-label">Reconfigurar</span></button>
+      <button class="btn btn-ghost" id="btnLogout" title="Cerrar sesión" style="display:none"><span class="nav-ico"><svg class="ico-sm" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 14v1.2a1.8 1.8 0 0 1-1.8 1.8H4.8A1.8 1.8 0 0 1 3 15.2V4.8A1.8 1.8 0 0 1 4.8 3h5.9a1.8 1.8 0 0 1 1.8 1.8V6"/><path d="M8.5 10h8.5m0 0-2.6-2.6M17 10l-2.6 2.6"/></svg></span><span class="nav-label">Cerrar sesión</span></button>
       <button class="btn btn-ghost" id="sidebarCollapseBtn" title="Colapsar"><span class="nav-ico" id="sidebarCollapseIco">‹</span><span class="nav-label">Colapsar</span></button>
     </div>
   </aside>
@@ -554,7 +584,16 @@
     <div class="section-title">Tablero de clientes <span class="hint">— todas las métricas, ordená y filtrá</span></div>
     <div class="toolbar">
       <div class="search-wrap"><span class="ico"><svg class="ico-sm ico-14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8.7" cy="8.7" r="5"/><path d="m16.3 16.3-3.7-3.7"/></svg></span><input class="input" id="searchInput" type="text" placeholder="Buscar cliente…" /></div>
-      <select class="select" id="clientJumpSel"><option value="">Ir a cliente…</option></select>
+      <div class="cli-combo" id="jumpCombo">
+        <button type="button" class="select cli-select-btn" id="jumpSelBtn">
+          <span id="jumpSelBtnLabel">Ir a cliente…</span>
+          <svg class="dr-chev" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 7.5 5 5 5-5"/></svg>
+        </button>
+        <div class="cli-combo-pop" id="jumpSelPop">
+          <input type="text" class="input cli-combo-search" id="jumpSelSearch" placeholder="Buscar cliente…" autocomplete="off">
+          <div class="cli-combo-list" id="jumpSelResults"></div>
+        </div>
+      </div>
       <select class="select" id="catFilter"><option value="">Categoría: todas</option><option value="A">Categoría A</option><option value="B">Categoría B</option><option value="C">Categoría C</option></select>
       <select class="select" id="statusFilter"><option value="">Estado: todos</option><option value="Activo">Activo</option><option value="En Pausa">En Pausa</option></select>
       <label class="chk"><input type="checkbox" id="alertsOnly" /> Solo en alerta</label>
@@ -632,7 +671,6 @@ const MOCK_PLANNED_BUDGET = {
 };
 const PLATFORM_LABEL = { meta: 'Meta', google: 'Google Ads', pinterest: 'Pinterest', tiktok: 'TikTok Ads' };
 const LS_GLOBAL = 'aconcagua_global_th', LS_CLIENT = 'aconcagua_client_th';
-const LS_TOKEN = 'aconcagua_meta_token', LS_ACCOUNTS = 'aconcagua_meta_accounts';
 const state = {
   period: 'this_month', customFrom: '', customTo: '', platform: 'todos', clients: [],
   sortKey: 'spend', sortDir: 'desc',
@@ -641,17 +679,15 @@ const state = {
   campClient: null, campLevel: 'campaign', campCampaign: 'all', campAdset: 'all', campAd: 'all',
   view: 'dashboard',
   thresholds: { ...DEFAULT_THRESHOLDS }, clientThresholds: {},
-  clientAccounts: {}, metaToken: '',
+  clientAccounts: {}, session: null,
   agency: 'Aconcagua', lastUpdated: null, demo: true
 };
 try { Object.assign(state.thresholds, JSON.parse(localStorage.getItem(LS_GLOBAL) || '{}')); } catch (e) {}
 try { state.clientThresholds = JSON.parse(localStorage.getItem(LS_CLIENT) || '{}'); } catch (e) {}
-try { state.clientAccounts = JSON.parse(localStorage.getItem(LS_ACCOUNTS) || '{}'); } catch (e) {}
-try { state.metaToken = localStorage.getItem(LS_TOKEN) || ''; } catch (e) {}
 
-/* ===== Backend compartido (Supabase) — para la próxima sección (Novedades Meta) =====
+/* ===== Backend (Supabase) — login del equipo + Ad Account IDs compartidos =====
    Pegá acá la URL y la anon key de tu proyecto (Supabase → Settings → API).
-   Mientras estén vacías, la app sigue funcionando en modo local, sin romper nada. */
+   Mientras estén vacías, la app sigue funcionando en modo demo, sin romper nada. */
 const SUPABASE_URL = 'PEGA_ACA_TU_PROJECT_URL';
 const SUPABASE_ANON_KEY = 'PEGA_ACA_TU_ANON_KEY';
 const sb = (typeof supabase !== 'undefined' && /^https?:\/\//.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 20)
@@ -667,7 +703,11 @@ const MOCK_SHEET = [
   { status:'Activo',   categoria:'B', nombre:'TecnoHogar',          owner:'Lucas',  coOwners:['Martín'],        metaId:'555', targetRoas:4.0, targetCpa:3500, presupuesto:1000000, objetivo:'conversiones', ticket:12000 },
   { status:'En Pausa', categoria:'C', nombre:'Viajes Andinos',      owner:'Valen',  coOwners:[],                metaId:'666', targetRoas:2.5, targetCpa:2200, presupuesto:250000,  objetivo:'conversiones', ticket:9000 },
   { status:'Activo',   categoria:'A', nombre:'InmoAndes Propiedades', owner:'Martín', coOwners:['Valen'],       metaId:'777', targetRoas:0,   targetCpa:3500, presupuesto:550000,  objetivo:'leads',        ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Skinko Argentina',    owner:'Valen',  coOwners:[],                metaId:'888', targetRoas:2.5, targetCpa:2000, presupuesto:0,       objetivo:'conversiones', ticket:0 }
+  { status:'Activo',   categoria:'A', nombre:'Skinko Argentina',    owner:'Valen',  coOwners:[],                metaId:'888', targetRoas:2.5, targetCpa:2000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'PROTA',               owner:'Valen',  coOwners:[],                metaId:'999', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'FUEL',                owner:'Valen',  coOwners:[],                metaId:'1000', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Drink Suma',          owner:'Valen',  coOwners:[],                metaId:'1001', targetRoas:4,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Skinfree',            owner:'Valen',  coOwners:[],                metaId:'1002', targetRoas:9,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 }
 ];
 const MOCK_PLATFORMS = {
   '111': { meta:{ spend:300000, roas:3.9, conv:238, impr:2000000, clicks:40000, trend:[230,240,253,268,280,290,300] }, google:{ spend:180000, roas:3.6, conv:125, impr:750000, clicks:13500, trend:[138,145,153,160,168,175,180] }, pinterest:{ spend:95000, roas:3.3, conv:58, impr:620000, clicks:9800, trend:[68,72,78,84,88,92,95] } },
@@ -854,8 +894,7 @@ function periodFactor(period) {
   }
   return PERIOD_FACTOR[period] || 1;
 }
-/* ===== Meta Marketing API (datos reales) ===== */
-const META_API_VERSION = 'v21.0';
+/* ===== Meta Marketing API (datos reales, vía nuestro backend — el token vive en el servidor) ===== */
 // Meta suele reportar la MISMA compra bajo varios action_type superpuestos
 // (omni_purchase incluye lo que ya cuenta offsite_conversion.fb_pixel_purchase, que a su vez
 // se solapa con purchase). Sumar los tres cuenta cada compra hasta 3 veces — hay que elegir
@@ -869,25 +908,35 @@ function metaActionSum(list, types) {
   }
   return 0;
 }
-async function fetchMetaSpendTotal(token, accountId, since, until) {
-  const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
-  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
-  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?fields=spend&time_range=${timeRange}&access_token=${encodeURIComponent(token)}`;
+function pctDelta(curr, prev) {
+  if (curr == null || prev == null || prev === 0) return null;
+  return Math.round((curr - prev) / prev * 100);
+}
+async function fetchMetaTotals(authToken, accountId, since, until) {
+  const url = `/api/meta-totals?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
     const json = await res.json();
     if (json.error || !json.data || !json.data[0]) return null;
-    return +json.data[0].spend || 0;
+    const row = json.data[0];
+    const spend = +row.spend || 0;
+    const conv = metaActionSum(row.actions, META_PURCHASE_ACTION_PRIORITY);
+    const revenue = metaActionSum(row.action_values, META_PURCHASE_ACTION_PRIORITY);
+    const impr = +row.impressions || 0;
+    const clicks = +row.clicks || 0;
+    return {
+      spend, conv, revenue, impr, clicks,
+      roas: spend > 0 ? revenue/spend : null,
+      cpa: conv > 0 ? spend/conv : null,
+      ctr: impr > 0 ? clicks/impr*100 : null
+    };
   } catch (e) { return null; }
 }
-async function fetchMetaHierarchy(token, accountId, since, until) {
-  const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
-  const fields = 'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,action_values';
-  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
-  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?level=ad&fields=${fields}&time_range=${timeRange}&limit=500&access_token=${encodeURIComponent(token)}`;
-  const res = await fetch(url);
+async function fetchMetaHierarchy(authToken, accountId, since, until) {
+  const url = `/api/meta-hierarchy?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
-  if (json.error) { const err = new Error(json.error.message || 'Error de la API de Meta'); err.metaError = json.error; throw err; }
+  if (json.error) { throw new Error(json.error); }
   const rows = json.data || [];
 
   function buildLevel(idKey, nameKey) {
@@ -919,24 +968,21 @@ async function fetchMetaHierarchy(token, accountId, since, until) {
     ads: buildLevel('ad_id', 'ad_name')
   };
 }
-async function fetchMetaInsightsDaily(token, accountId, since, until) {
-  const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
-  const fields = 'spend,impressions,clicks,actions,action_values';
-  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
-  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?fields=${fields}&time_range=${timeRange}&time_increment=1&limit=500&access_token=${encodeURIComponent(token)}`;
+async function fetchMetaInsightsDaily(authToken, accountId, since, until) {
+  const url = `/api/meta-daily?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   let res;
   try {
-    res = await fetch(url, { signal: controller.signal });
+    res = await fetch(url, { signal: controller.signal, headers: { Authorization: `Bearer ${authToken}` } });
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error('La API de Meta no respondió a tiempo (15s). Probá de nuevo.');
-    throw new Error('No se pudo conectar con la API de Meta: ' + e.message);
+    if (e.name === 'AbortError') throw new Error('El servidor no respondió a tiempo (15s). Probá de nuevo.');
+    throw new Error('No se pudo conectar con el servidor: ' + e.message);
   } finally {
     clearTimeout(timer);
   }
   const json = await res.json();
-  if (json.error) { const err = new Error(json.error.message || 'Error de la API de Meta'); err.metaError = json.error; throw err; }
+  if (json.error) { throw new Error(json.error); }
   return json.data || [];
 }
 function metaDayFromRow(row) {
@@ -995,15 +1041,15 @@ async function buildClients(period) {
   const scale = raw => raw ? { spend: Math.round(raw.spend*f), roas: raw.roas, conv: Math.round(raw.conv*f), impr: Math.round(raw.impr*f), clicks: Math.round(raw.clicks*f), trend: raw.trend.map(v => Math.round(v*f)) } : null;
   const { from, to } = currentPeriodDates();
   const sinceStr = ymd(from), untilStr = ymd(to);
-  const token = state.metaToken;
+  const authToken = state.session ? state.session.access_token : null;
   return Promise.all(MOCK_SHEET.map(async row => {
     const p = MOCK_PLATFORMS[row.metaId] || {};
     const wk = MOCK_WEEKLY[row.metaId];
     const accountId = state.clientAccounts[row.metaId];
     let metaRaw = scale(p.meta), weekly = wk ? { labels: WEEK_LABELS, ...wk } : null, metaLiveDays = null, metaError = null, metaLiveHierarchy = null;
-    if (accountId && token) {
+    if (accountId && authToken) {
       try {
-        const live = await fetchMetaClient(token, accountId, sinceStr, untilStr);
+        const live = await fetchMetaClient(authToken, accountId, sinceStr, untilStr);
         metaRaw = live.raw; metaLiveDays = live.days; if (live.weekly) weekly = live.weekly;
         // "vs período anterior" tiene que comparar el TOTAL de este período contra el TOTAL
         // de un período anterior de igual longitud — no el primer día contra el último día
@@ -1012,11 +1058,28 @@ async function buildClients(period) {
         const lengthDays = Math.round((to - from) / 86400000) + 1;
         const prevTo = new Date(from); prevTo.setDate(prevTo.getDate() - 1);
         const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate() - (lengthDays - 1));
-        const prevSpend = await fetchMetaSpendTotal(token, accountId, ymd(prevFrom), ymd(prevTo));
-        if (prevSpend != null && prevSpend > 0) {
-          metaRaw.trendPct = Math.round((metaRaw.spend - prevSpend) / prevSpend * 100);
+        const prevTotals = await fetchMetaTotals(authToken, accountId, ymd(prevFrom), ymd(prevTo));
+        if (prevTotals) {
+          const revenue = metaRaw.roas != null ? metaRaw.spend * metaRaw.roas : null;
+          const cpa = metaRaw.conv > 0 ? metaRaw.spend / metaRaw.conv : null;
+          const ctr = metaRaw.impr > 0 ? metaRaw.clicks / metaRaw.impr * 100 : null;
+          metaRaw.trendPct = pctDelta(metaRaw.spend, prevTotals.spend);
+          metaRaw.convD = pctDelta(metaRaw.conv, prevTotals.conv);
+          metaRaw.revD = pctDelta(revenue, prevTotals.revenue);
+          metaRaw.roasD = pctDelta(metaRaw.roas, prevTotals.roas);
+          metaRaw.cpaD = pctDelta(cpa, prevTotals.cpa);
+          metaRaw.ctrD = pctDelta(ctr, prevTotals.ctr);
+          // Se guardan también los valores crudos del período anterior — para que la línea de
+          // tendencia de cada tarjeta pueda dibujar exactamente "antes → ahora" de esa misma
+          // métrica, en vez de un detalle día a día que cuenta una historia distinta al %.
+          metaRaw.prevSpend = prevTotals.spend;
+          metaRaw.prevConv = prevTotals.conv;
+          metaRaw.prevRevenue = prevTotals.revenue;
+          metaRaw.prevRoas = prevTotals.roas;
+          metaRaw.prevCpa = prevTotals.cpa;
+          metaRaw.prevCtr = prevTotals.ctr;
         }
-        metaLiveHierarchy = await fetchMetaHierarchy(token, accountId, sinceStr, untilStr);
+        metaLiveHierarchy = await fetchMetaHierarchy(authToken, accountId, sinceStr, untilStr);
       } catch (e) { metaError = e.message; }
     }
     return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: scale(p.pinterest), tiktok: scale(p.tiktok) }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy };
@@ -1274,17 +1337,52 @@ function renderAlertReasons() {
 }
 
 /* ===== 3. TABLERO CLIENTES ===== */
-function sparkline(arr, w=70, h=24) {
-  if (!arr || arr.length < 2 || arr.every(v => v === 0)) return '<span class="muted-dash">—</span>';
-  const max=Math.max(...arr),min=Math.min(...arr),range=(max-min)||1;
-  const pts = arr.map((v,i) => `${(i/(arr.length-1))*w},${h-((v-min)/range)*h}`).join(' ');
-  const col = arr[arr.length-1] >= arr[0] ? 'var(--green)' : 'var(--red)';
+function sparkline(arr, w=70, h=24, dirOverride, fixedColor) {
+  const vals = (arr || []).filter(v => v != null);
+  if (vals.length < 2 || vals.every(v => v === 0)) return '<span class="muted-dash">—</span>';
+  const max=Math.max(...vals),min=Math.min(...vals),range=(max-min)||1;
+  const pts = vals.map((v,i) => `${(i/(vals.length-1))*w},${h-((v-min)/range)*h}`).join(' ');
+  // fixedColor: un color fijo (no ligado a si sube o baja) — para cuando la línea es solo "así
+  // se movió día a día" y el veredicto real ya lo dice el cartel de al lado con otro criterio
+  // (vs. período anterior), no conviene que el color de la línea parezca un segundo veredicto.
+  // dirOverride: cuando la línea SÍ es el único indicador (p.ej. la tabla de cartera), el color
+  // sigue ese signo en vez del de los extremos de esta serie.
+  const col = fixedColor || ((dirOverride != null ? dirOverride >= 0 : vals[vals.length-1] >= vals[0]) ? 'var(--green)' : 'var(--red)');
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
-function trendCell(m) {
+function trendCell(c, m) {
   if (!m || m.spend === 0) return '<span class="muted-dash">—</span>';
-  const p = m.trendPct, dir = p>1?'up':(p<-1?'down':'flat'), arrow = dir==='up'?'▲':dir==='down'?'▼':'▬', sign = p>0?'+':'';
-  return `<div class="trend ${dir}">${sparkline(m.trend)}<span class="pct">${arrow} ${sign}${p}%</span></div>`;
+  // Acá no interesa "cuánto se gastó" (más gasto no es ni bueno ni malo) sino si la cuenta va
+  // mejor o peor: ROAS para ventas, CPA para leads (más barato = mejor, por eso se invierte el color).
+  const leads = isLeads(c);
+  const metaLiveOk = state.platform === 'meta' && c.metaLive && c.platforms.meta;
+  const w = c.weekly;
+  let value, deltaPct, spark;
+  if (leads) {
+    value = m.cpa;
+    if (metaLiveOk && c.platforms.meta.cpaD != null) {
+      deltaPct = c.platforms.meta.cpaD;
+      spark = (c.platforms.meta.prevCpa != null && value != null) ? [c.platforms.meta.prevCpa, value] : null;
+    } else {
+      spark = (w && w.cpa && w.cpa.length > 1) ? [w.cpa[0], w.cpa[w.cpa.length-1]] : null;
+      deltaPct = spark ? seriesDelta(w.cpa) : null;
+    }
+  } else {
+    value = m.roas;
+    if (metaLiveOk && c.platforms.meta.roasD != null) {
+      deltaPct = c.platforms.meta.roasD;
+      spark = (c.platforms.meta.prevRoas != null && value != null) ? [c.platforms.meta.prevRoas, value] : null;
+    } else {
+      spark = (w && w.roas && w.roas.length > 1) ? [w.roas[0], w.roas[w.roas.length-1]] : null;
+      deltaPct = spark ? seriesDelta(w.roas) : null;
+    }
+  }
+  if (value == null || deltaPct == null) return '<span class="muted-dash">—</span>';
+  const arrow = deltaPct>1 ? '▲' : (deltaPct<-1 ? '▼' : '▬');
+  const favorable = Math.abs(deltaPct) <= 1 ? null : (leads ? deltaPct < 0 : deltaPct > 0);
+  const colorClass = favorable == null ? 'flat' : (favorable ? 'up' : 'down');
+  const sign = deltaPct>0 ? '+' : '';
+  return `<div class="trend ${colorClass}">${sparkline(spark, 70, 24, favorable==null?null:(favorable?1:-1))}<span class="pct">${arrow} ${sign}${deltaPct}%</span></div>`;
 }
 function teamCell(c) {
   const members = [c.owner, ...c.coOwners];
@@ -1333,7 +1431,7 @@ function renderTable() {
         <td class="right">${cpaC}</td>
         <td class="right num">${m ? fmtInt(m.conversiones) : '<span class="muted-dash">—</span>'}</td>
         <td class="right">${ctrC}</td>
-        <td>${trendCell(m)}</td>
+        <td>${trendCell(c, m)}</td>
         <td>${platsCell(c)}</td>
       </tr>`;
   }).join('');
@@ -1343,9 +1441,24 @@ function renderTable() {
 function updateSortHeaders() {
   document.querySelectorAll('#clientsTable thead th.sortable').forEach(th => { const caret = th.querySelector('.caret'); if (th.dataset.sort === state.sortKey) { th.classList.add('sorted'); caret.textContent = state.sortDir==='asc'?'↑':'↓'; } else { th.classList.remove('sorted'); caret.textContent = '↕'; } });
 }
-function populateClientJump() {
-  const sel = document.getElementById('clientJumpSel'); if (!sel) return;
-  sel.innerHTML = '<option value="">Ir a cliente…</option>' + state.clients.map(c => `<option value="${c.metaId}">${esc(c.nombre)}</option>`).join('');
+function closeJumpSelPop() {
+  const pop = document.getElementById('jumpSelPop'); if (pop) pop.classList.remove('show');
+  const wrap = document.getElementById('jumpCombo'); if (wrap) wrap.classList.remove('open');
+  document.removeEventListener('mousedown', onDocClickCloseJumpSel);
+}
+function onDocClickCloseJumpSel(e) { if (!e.target.closest('#jumpCombo')) closeJumpSelPop(); }
+function renderJumpSelList(query) {
+  const listEl = document.getElementById('jumpSelResults');
+  if (!listEl) return;
+  const q = (query || '').toLowerCase().trim();
+  const filtered = q ? state.clients.filter(x => x.nombre.toLowerCase().includes(q)) : state.clients;
+  listEl.innerHTML = filtered.length
+    ? filtered.map(x => `<button type="button" class="cli-combo-item" data-id="${x.metaId}">${esc(x.nombre)}</button>`).join('')
+    : `<div class="cli-combo-empty">Sin resultados</div>`;
+  listEl.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
+    closeJumpSelPop();
+    selectClientForBoard(b.dataset.id);
+  }));
 }
 function selectClientForBoard(id) {
   state.selectedClient = id; state.campClient = id; state.campCampaign = 'all'; state.campAdset = 'all'; state.campAd = 'all';
@@ -1411,12 +1524,14 @@ function umbralesBody(c) {
 function wireUmbralesForm() {
   const c = state.clients.find(x => x.metaId === state.umbClient); if (!c) return;
   const accSave = document.getElementById('thcAccountSave');
-  if (accSave) accSave.addEventListener('click', () => {
+  if (accSave) accSave.addEventListener('click', async () => {
     const v = document.getElementById('thcAccount').value.trim();
     if (v) state.clientAccounts[c.metaId] = v; else delete state.clientAccounts[c.metaId];
-    try { localStorage.setItem(LS_ACCOUNTS, JSON.stringify(state.clientAccounts)); } catch (e) {}
-    if (v && !state.metaToken) toast('Guardado. Falta pegar el token de Meta en "Reconfigurar".');
-    else toast(v ? `Conectando a ${c.nombre} con Meta Ads…` : `${c.nombre} vuelve a datos demo`);
+    if (sb) {
+      if (v) await sb.from('client_accounts').upsert({ meta_id: c.metaId, account_id: v });
+      else await sb.from('client_accounts').delete().eq('meta_id', c.metaId);
+    }
+    toast(v ? `Conectando a ${c.nombre} con Meta Ads…` : `${c.nombre} vuelve a datos demo`);
     loadData(true);
   });
   const save = document.getElementById('thcSave'), reset = document.getElementById('thcReset');
@@ -1703,8 +1818,13 @@ function varBadge(pct) {
   const sign = pct > 0 ? '+' : '';
   return `<span class="var-badge v-${dir}">${arrow} ${sign}${pct}%</span>`;
 }
+const EXEC_CARD_SPARK_COLOR = { green: 'var(--green)', blue: 'var(--meta)', amber: 'var(--google)', red: 'var(--red)', purple: '#A88AFF' };
 function execCard(l,v,s,cls,delta,spark) {
-  return `<div class="exec-card ${cls||''}"><div class="l">${l}</div><div class="v-row"><div class="v num">${v}</div>${spark&&spark.filter(x=>x!=null).length>1?`<div class="spark">${sparkline(spark)}</div>`:''}</div><div class="s">${s||''}${delta!=null?varBadge(delta):''}</div></div>`;
+  // El color de esta línea es fijo (el mismo acento de la tarjeta), no depende de si sube o baja:
+  // acá el veredicto ya lo da el cartel "+X% / -X%" de abajo — la línea solo aporta la forma real
+  // día a día, no un segundo veredicto que podría no coincidir visualmente con el primero.
+  const sparkCol = EXEC_CARD_SPARK_COLOR[cls] || 'var(--accent)';
+  return `<div class="exec-card ${cls||''}"><div class="l">${l}</div><div class="v-row"><div class="v num">${v}</div>${spark&&spark.filter(x=>x!=null).length>1?`<div class="spark">${sparkline(spark, 70, 24, null, sparkCol)}</div>`:''}</div><div class="s">${s||''}${delta!=null?varBadge(delta):''}</div></div>`;
 }
 function cliChangePeriod(period, from, to) {
   state.period = period;
@@ -2684,6 +2804,24 @@ function tiktokSectionHTML(c) {
     </div>`;
 }
 
+function closeCliSelPop() {
+  const pop = document.getElementById('cliSelPop'); if (pop) pop.classList.remove('show');
+  const wrap = document.getElementById('cliCombo'); if (wrap) wrap.classList.remove('open');
+  document.removeEventListener('mousedown', onDocClickCloseCliSel);
+}
+function onDocClickCloseCliSel(e) { if (!e.target.closest('#cliCombo')) closeCliSelPop(); }
+function renderCliSelList(clientList, query) {
+  const listEl = document.getElementById('cliSelResults');
+  if (!listEl) return;
+  const q = (query || '').toLowerCase().trim();
+  const filtered = q ? clientList.filter(x => x.nombre.toLowerCase().includes(q)) : clientList;
+  listEl.innerHTML = filtered.length
+    ? filtered.map(x => `<button type="button" class="cli-combo-item ${x.metaId===state.cliClient?'active':''}" data-id="${x.metaId}">${esc(x.nombre)}</button>`).join('')
+    : `<div class="cli-combo-empty">Sin resultados</div>`;
+  listEl.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
+    state.cliClient = b.dataset.id; closeCliSelPop(); renderCliente();
+  }));
+}
 function renderCliente() {
   const host = document.getElementById('viewCliente');
   if (!state.cliObjetivo) state.cliObjetivo = 'ventas';
@@ -2693,7 +2831,7 @@ function renderCliente() {
     state.cliClient = first ? first.metaId : null;
   }
   const c = state.clients.find(x => x.metaId === state.cliClient);
-  const clientOpts = state.clients.filter(matchesObj).map(x => `<option value="${x.metaId}" ${x.metaId===state.cliClient?'selected':''}>${esc(x.nombre)}</option>`).join('');
+  const clientList = state.clients.filter(matchesObj);
   const objToggle = `<div class="seg" id="cliObjSeg">
       <button data-obj="ventas" class="${state.cliObjetivo!=='leads'?'active':''}">Ventas</button>
       <button data-obj="leads" class="${state.cliObjetivo==='leads'?'active':''}">Leads</button>
@@ -2709,7 +2847,16 @@ function renderCliente() {
       <h2>${c?esc(c.nombre):'Cliente'}</h2>
       ${objToggle}
       ${viewToggle}
-      <select class="select" id="cliSel">${clientOpts}</select>
+      <div class="cli-combo" id="cliCombo">
+        <button type="button" class="select cli-select-btn" id="cliSelBtn">
+          <span id="cliSelBtnLabel">${c?esc(c.nombre):'Cliente'}</span>
+          <svg class="dr-chev" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 7.5 5 5 5-5"/></svg>
+        </button>
+        <div class="cli-combo-pop" id="cliSelPop">
+          <input type="text" class="input cli-combo-search" id="cliSelSearch" placeholder="Buscar cliente…" autocomplete="off">
+          <div class="cli-combo-list" id="cliSelResults"></div>
+        </div>
+      </div>
       ${periodPickerHTML('cli')}
     </div><p class="cli-note">Vista ejecutiva — pensada para ver y compartir con el cliente. Datos demo. ${state.cliObjetivo==='leads'?'Simulación de cliente que busca generar clientes potenciales (leads), no ventas online.':'Simulación de cliente de ventas / e-commerce.'}</p>`;
   const wire = () => {
@@ -2721,7 +2868,20 @@ function renderCliente() {
       if (state.cliView === b.dataset.view) return;
       state.cliView = b.dataset.view; renderCliente();
     }));
-    const s = document.getElementById('cliSel'); if (s) s.addEventListener('change', e => { state.cliClient = e.target.value; renderCliente(); });
+    const comboBtn = document.getElementById('cliSelBtn');
+    const comboPop = document.getElementById('cliSelPop');
+    const comboSearch = document.getElementById('cliSelSearch');
+    if (comboBtn && comboPop && comboSearch) {
+      comboBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (comboPop.classList.contains('show')) { closeCliSelPop(); return; }
+        comboPop.classList.add('show'); document.getElementById('cliCombo').classList.add('open');
+        comboSearch.value = ''; renderCliSelList(clientList, '');
+        setTimeout(() => { comboSearch.focus(); document.addEventListener('mousedown', onDocClickCloseCliSel); }, 0);
+      });
+      comboSearch.addEventListener('input', () => renderCliSelList(clientList, comboSearch.value));
+      comboSearch.addEventListener('keydown', e => { if (e.key === 'Escape') closeCliSelPop(); });
+    }
     wirePeriodPicker('cli');
     const cms = document.getElementById('campMetricSel'); if (cms) cms.addEventListener('change', e => { state.campChartMetric = e.target.value; renderCliente(); });
     const ams = document.getElementById('adsetMetricSel'); if (ams) ams.addEventListener('change', e => { state.adsetChartMetric = e.target.value; renderCliente(); });
@@ -2808,20 +2968,35 @@ function renderCliente() {
   const w = c.weekly;
   const convSeries = w ? w.gasto.map((g,i) => (w.cpa[i]>0 ? g/w.cpa[i] : null)) : null;
   const revSeries = (w && !leads) ? w.gasto.map((g,i) => (w.roas[i]!=null ? g*w.roas[i] : null)) : null;
-  const gastoD = w ? seriesDelta(w.gasto) : null;
-  const roasD = (w && !leads) ? seriesDelta(w.roas) : null;
-  const cpaD = w ? seriesDelta(w.cpa) : null;
-  const ctrD = w ? seriesDelta(w.ctr) : null;
-  const convD = convSeries ? seriesDelta(convSeries) : null;
-  const revD = revSeries ? seriesDelta(revSeries) : null;
+  // Para cuentas conectadas de verdad ya tenemos el delta real (total del período vs. período
+  // anterior, calculado en buildClients). Si esa cuenta no tiene comparación real (p.ej. el período
+  // anterior no tuvo conversiones), NUNCA se cae al cálculo semanal intra-período — sería un número
+  // inventado con otro criterio. Ese fallback semanal es solo para clientes demo (mock).
+  const live = c.metaLive;
+  const gastoD = live ? (r.trendPct != null ? r.trendPct : null) : (w ? seriesDelta(w.gasto) : null);
+  const roasD = !leads ? (live ? (r.roasD != null ? r.roasD : null) : (w ? seriesDelta(w.roas) : null)) : null;
+  const cpaD = live ? (r.cpaD != null ? r.cpaD : null) : (w ? seriesDelta(w.cpa) : null);
+  const ctrD = live ? (r.ctrD != null ? r.ctrD : null) : (w ? seriesDelta(w.ctr) : null);
+  const convD = live ? (r.convD != null ? r.convD : null) : (convSeries ? seriesDelta(convSeries) : null);
+  const revD = live ? (r.revD != null ? r.revD : null) : (revSeries ? seriesDelta(revSeries) : null);
   const genericD = trendPct || null;
+  // La línea vuelve a mostrar la evolución real día a día (o semana a semana en el demo) — el
+  // color ya no depende de ella (ver EXEC_CARD_SPARK_COLOR), así que no hace falta reducirla a
+  // 2 puntos para evitar contradicciones: mostrar la forma real aporta más que una diagonal sola.
+  const liveDays = (live && c.metaLiveDays) ? c.metaLiveDays : null;
+  const gastoSpark = liveDays ? liveDays.map(d => d.gasto) : (w && w.gasto);
+  const revSpark = liveDays ? (!leads ? liveDays.map(d => d.roas!=null ? d.gasto*d.roas : null) : null) : revSeries;
+  const roasSpark = liveDays ? (!leads ? liveDays.map(d => d.roas) : null) : (!leads ? (w && w.roas) : null);
+  const cpaSpark = liveDays ? liveDays.map(d => d.cpa) : (w && w.cpa);
+  const ctrSpark = liveDays ? liveDays.map(d => d.impr>0 ? d.clicks/d.impr*100 : null) : (w && w.ctr);
+  const convSpark = liveDays ? liveDays.map(d => d.conv) : convSeries;
 
   const perf = [
-    execCard('Inversión', fmtMoney(spend), periodLabel(), 'blue', gastoD, w&&w.gasto),
-    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leads?'objetivo leads':'revenue atribuido', 'green', revD, revSeries),
-    execCard('ROAS', leads?'—':fmtRoas(roas), leads?'obj. leads':'retorno', 'green', roasD, !leads&&w?w.roas:null),
-    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leads?'costo por lead':'costo por compra', 'amber', cpaD, w&&w.cpa),
-    execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, w&&w.ctr),
+    execCard('Inversión', fmtMoney(spend), periodLabel(), 'blue', gastoD, gastoSpark),
+    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leads?'objetivo leads':'revenue atribuido', 'green', revD, revSpark),
+    execCard('ROAS', leads?'—':fmtRoas(roas), leads?'obj. leads':'retorno', 'green', roasD, roasSpark),
+    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leads?'costo por lead':'costo por compra', 'amber', cpaD, cpaSpark),
+    execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, ctrSpark),
     execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', genericD, null),
     execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', genericD, null),
     execCard('Alcance', fmtInt(reach), 'personas', 'purple', genericD, null),
@@ -2829,10 +3004,10 @@ function renderCliente() {
     execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', null, null)
   ].join('');
   const conv = [
-    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', convD, convSeries),
+    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', convD, convSpark),
     execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', null, null),
-    execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSeries),
-    execCard(leads?'Leads':'Compras', fmtInt(purchases), '', 'green', convD, convSeries),
+    execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSpark),
+    execCard(leads?'Leads':'Compras', fmtInt(purchases), '', 'green', convD, convSpark),
     execCard('Add to cart', atc!=null?fmtInt(atc):'—', leads?'no aplica':'', 'amber', null, null),
     execCard('Checkouts', checkout!=null?fmtInt(checkout):'—', leads?'no aplica':'', 'amber', null, null)
   ].join('');
@@ -2874,7 +3049,7 @@ function renderCliente() {
 }
 
 /* ===== render general ===== */
-function renderAll() { renderSummary(); renderAlertReasons(); populateClientJump(); renderTable(); renderUmbralesCliente(); renderCampaignBoard(); }
+function renderAll() { renderSummary(); renderAlertReasons(); renderTable(); renderUmbralesCliente(); renderCampaignBoard(); }
 function populateTeamFilter() {
   const members = new Set(); state.clients.forEach(c => { members.add(c.owner); c.coOwners.forEach(o => members.add(o)); });
   document.getElementById('teamSel').innerHTML = '<option value="">Todo el equipo</option>' + [...members].sort().map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
@@ -2910,7 +3085,18 @@ function wireEvents() {
   });
   document.getElementById('btnThresholds').addEventListener('click', openThModal);
   document.querySelectorAll('#platformSeg button').forEach(b => b.addEventListener('click', () => { state.platform = b.dataset.plat; document.querySelectorAll('#platformSeg button').forEach(x => x.classList.toggle('active', x === b)); renderAll(); }));
-  document.getElementById('clientJumpSel').addEventListener('change', e => { if (e.target.value) selectClientForBoard(e.target.value); e.target.value = ''; });
+  const jumpBtn = document.getElementById('jumpSelBtn');
+  const jumpPop = document.getElementById('jumpSelPop');
+  const jumpSearch = document.getElementById('jumpSelSearch');
+  jumpBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (jumpPop.classList.contains('show')) { closeJumpSelPop(); return; }
+    jumpPop.classList.add('show'); document.getElementById('jumpCombo').classList.add('open');
+    jumpSearch.value = ''; renderJumpSelList('');
+    setTimeout(() => { jumpSearch.focus(); document.addEventListener('mousedown', onDocClickCloseJumpSel); }, 0);
+  });
+  jumpSearch.addEventListener('input', () => renderJumpSelList(jumpSearch.value));
+  jumpSearch.addEventListener('keydown', e => { if (e.key === 'Escape') closeJumpSelPop(); });
   document.getElementById('searchInput').addEventListener('input', e => { state.search = e.target.value; renderTable(); });
   document.getElementById('catFilter').addEventListener('change', e => { state.catFilter = e.target.value; renderTable(); });
   document.getElementById('statusFilter').addEventListener('change', e => { state.statusFilter = e.target.value; renderTable(); });
@@ -2925,32 +3111,59 @@ function wireEvents() {
   });
   document.getElementById('thReset').addEventListener('click', () => { state.thresholds = { ...DEFAULT_THRESHOLDS }; localStorage.removeItem(LS_GLOBAL); openThModal(); toast('Umbrales globales restablecidos'); renderAll(); });
   document.querySelectorAll('#topnav button[data-view]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
-  document.getElementById('btnDemo').addEventListener('click', () => startApp(true));
+  document.getElementById('btnDemo').addEventListener('click', () => { state.session = null; startApp(true); });
   document.getElementById('btnConnect').addEventListener('click', () => {
     const a = document.getElementById('cfgAgency').value.trim(); if (a) state.agency = a;
-    const tok = document.getElementById('cfgMetaToken').value.trim();
-    if (tok) { state.metaToken = tok; try { localStorage.setItem(LS_TOKEN, tok); } catch (e) {} }
-    toast(tok ? 'Token de Meta guardado. Configurá el ID de cuenta de cada cliente en Umbrales.' : 'Sin token de Meta — mostrando datos demo.');
-    startApp(!tok);
+    document.getElementById('agencyName').textContent = state.agency;
+    document.getElementById('configScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    toast('Configuración guardada.');
+  });
+  document.getElementById('btnSendLink').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const statusEl = document.getElementById('loginStatus');
+    if (!email) return;
+    statusEl.style.display = 'block';
+    if (!sb) { statusEl.textContent = 'El login todavía no está configurado — usá "Ver demo" por ahora.'; return; }
+    statusEl.textContent = 'Enviando...';
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+    statusEl.textContent = error ? ('Error: ' + error.message) : 'Listo — revisá tu mail y hacé click en el link para entrar.';
+  });
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    if (sb) await sb.auth.signOut();
+    location.reload();
   });
 }
 function showConfig() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('configScreen').style.display = 'grid';
-  const tokEl = document.getElementById('cfgMetaToken'); if (tokEl && state.metaToken) tokEl.value = state.metaToken;
   const agEl = document.getElementById('cfgAgency'); if (agEl && state.agency) agEl.value = state.agency;
+}
+function showLogin() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('configScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'grid';
 }
 function subscribeRealtime() {
   if (!sb || state.realtimeOn) return;
   state.realtimeOn = true;
   /* Reservado para la próxima sección (Novedades Meta) — acá se suscribe la tabla compartida cuando exista. */
 }
+async function loadClientAccounts() {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from('client_accounts').select('*');
+    if (!error && data) state.clientAccounts = Object.fromEntries(data.map(r => [r.meta_id, r.account_id]));
+  } catch (e) {}
+}
 async function startApp(demo) {
   state.demo = demo;
+  document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('configScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('agencyName').textContent = state.agency;
   document.getElementById('demoBadge').style.display = demo ? 'inline-block' : 'none';
+  document.getElementById('btnLogout').style.display = demo ? 'none' : 'flex';
   updatePeriodTrigger('main');
   switchView('dashboard');
   loadData(true);
@@ -2958,8 +3171,22 @@ async function startApp(demo) {
 }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 2800); }
 
+async function initAuth() {
+  if (!sb) { startApp(true); return; }
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      state.session = session;
+      loadClientAccounts().then(() => startApp(false));
+    }
+    if (event === 'SIGNED_OUT') { state.session = null; showLogin(); }
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { state.session = session; await loadClientAccounts(); startApp(false); }
+  else { showLogin(); }
+}
+
 wireEvents();
-startApp(true);
+initAuth();
 </script>
 </body>
 </html>

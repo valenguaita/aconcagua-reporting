@@ -688,8 +688,8 @@ try { state.clientThresholds = JSON.parse(localStorage.getItem(LS_CLIENT) || '{}
 /* ===== Backend (Supabase) — login del equipo + Ad Account IDs compartidos =====
    Pegá acá la URL y la anon key de tu proyecto (Supabase → Settings → API).
    Mientras estén vacías, la app sigue funcionando en modo demo, sin romper nada. */
-const SUPABASE_URL = 'PEGA_ACA_TU_PROJECT_URL';
-const SUPABASE_ANON_KEY = 'PEGA_ACA_TU_ANON_KEY';
+const SUPABASE_URL = 'https://hardcmjxzhcxcgbwkefz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_1ZfGqOnua32rlnwSZEoSBw_-V-TBXW5';
 const sb = (typeof supabase !== 'undefined' && /^https?:\/\//.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 20)
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;

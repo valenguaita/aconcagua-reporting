@@ -2764,6 +2764,8 @@ function renderCliSelList(clientList, query) {
     ? filtered.map(x => `<button type="button" class="cli-combo-item ${x.metaId===state.cliClient?'active':''}" data-id="${x.metaId}">${esc(x.nombre)}</button>`).join('')
     : `<div class="cli-combo-empty">Sin resultados</div>`;
   listEl.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
+    const picked = state.clients.find(x => x.metaId === b.dataset.id);
+    if (picked) state.cliObjetivo = isLeads(picked) ? 'leads' : 'ventas';
     state.cliClient = b.dataset.id; closeCliSelPop(); renderCliente();
   }));
 }
@@ -2783,7 +2785,6 @@ function renderCliente() {
     host.innerHTML = `<div class="fnl" style="text-align:center;color:var(--text-faint)">Cargando clientes…</div>`;
     return;
   }
-  const clientList = state.clients.filter(matchesObj);
   const objToggle = `<div class="seg" id="cliObjSeg">
       <button data-obj="ventas" class="${state.cliObjetivo!=='leads'?'active':''}">Ventas</button>
       <button data-obj="leads" class="${state.cliObjetivo==='leads'?'active':''}">Leads</button>
@@ -2828,10 +2829,10 @@ function renderCliente() {
         e.stopPropagation();
         if (comboPop.classList.contains('show')) { closeCliSelPop(); return; }
         comboPop.classList.add('show'); document.getElementById('cliCombo').classList.add('open');
-        comboSearch.value = ''; renderCliSelList(clientList, '');
+        comboSearch.value = ''; renderCliSelList(state.clients, '');
         setTimeout(() => { comboSearch.focus(); document.addEventListener('mousedown', onDocClickCloseCliSel); }, 0);
       });
-      comboSearch.addEventListener('input', () => renderCliSelList(clientList, comboSearch.value));
+      comboSearch.addEventListener('input', () => renderCliSelList(state.clients, comboSearch.value));
       comboSearch.addEventListener('keydown', e => { if (e.key === 'Escape') closeCliSelPop(); });
     }
     wirePeriodPicker('cli');

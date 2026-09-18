@@ -1560,27 +1560,31 @@ function wireUmbralesForm() {
     toast(v ? `Conectando a ${c.nombre} con Meta Ads…` : `${c.nombre} vuelve a datos demo`);
     loadData(true);
   });
+  const saveClientThresholds = async o => {
+    if (sb) await sb.from('client_thresholds').upsert({ meta_id: c.metaId, data: o });
+  };
   const save = document.getElementById('thcSave'), reset = document.getElementById('thcReset');
-  if (save) save.addEventListener('click', () => {
+  if (save) save.addEventListener('click', async () => {
     const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
     const o = {}; const r = num('thcRoas'), cp = num('thcCpa'), ct = num('thcCtr'), pa = num('thcPacing'), cg = num('thcConv'), bd = num('thcBudget');
     if (!isLeads(c) && r != null) o.roas = r; if (cp != null) o.cpa = cp; if (ct != null) o.ctr = ct; if (pa != null) o.pacing = pa; if (cg != null) o.convGoal = cg; if (bd != null) o.budget = bd;
-    state.clientThresholds[c.metaId] = o; localStorage.setItem(LS_CLIENT, JSON.stringify(state.clientThresholds));
+    state.clientThresholds[c.metaId] = o; await saveClientThresholds(o);
     toast(`Umbrales de ${c.nombre} guardados`); renderAll();
   });
-  if (reset) reset.addEventListener('click', () => {
-    delete state.clientThresholds[c.metaId]; localStorage.setItem(LS_CLIENT, JSON.stringify(state.clientThresholds));
+  if (reset) reset.addEventListener('click', async () => {
+    delete state.clientThresholds[c.metaId];
+    if (sb) await sb.from('client_thresholds').delete().eq('meta_id', c.metaId);
     toast(`Umbrales de ${c.nombre} restablecidos`); renderAll();
   });
   const budgetSave = document.getElementById('thcBudgetSave');
-  if (budgetSave) budgetSave.addEventListener('click', () => {
+  if (budgetSave) budgetSave.addEventListener('click', async () => {
     const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
     const o = state.clientThresholds[c.metaId] || {};
     ['meta','google','pinterest','tiktok'].forEach(p => {
       const v = num('thcBudget' + p.charAt(0).toUpperCase() + p.slice(1));
       if (v != null) o['budget_' + p] = v; else delete o['budget_' + p];
     });
-    state.clientThresholds[c.metaId] = o; localStorage.setItem(LS_CLIENT, JSON.stringify(state.clientThresholds));
+    state.clientThresholds[c.metaId] = o; await saveClientThresholds(o);
     toast(`Presupuesto planificado de ${c.nombre} guardado`); renderAll();
   });
 }
@@ -3087,11 +3091,15 @@ function subscribeRealtime() {
   state.realtimeOn = true;
   /* Reservado para la próxima sección (Novedades Meta) — acá se suscribe la tabla compartida cuando exista. */
 }
-async function loadClientAccounts() {
+async function loadSharedData() {
   if (!sb) return;
   try {
     const { data, error } = await sb.from('client_accounts').select('*');
     if (!error && data) state.clientAccounts = Object.fromEntries(data.map(r => [r.meta_id, r.account_id]));
+  } catch (e) {}
+  try {
+    const { data, error } = await sb.from('client_thresholds').select('*');
+    if (!error && data) state.clientThresholds = Object.fromEntries(data.map(r => [r.meta_id, r.data || {}]));
   } catch (e) {}
 }
 async function startApp(demo) {
@@ -3114,12 +3122,12 @@ async function initAuth() {
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session) {
       state.session = session;
-      loadClientAccounts().then(() => startApp(false));
+      loadSharedData().then(() => startApp(false));
     }
     if (event === 'SIGNED_OUT') { state.session = null; showLogin(); }
   });
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { state.session = session; await loadClientAccounts(); startApp(false); }
+  if (session) { state.session = session; await loadSharedData(); startApp(false); }
   else { showLogin(); }
 }
 

@@ -977,10 +977,11 @@ async function fetchTikTokRows(endpoint, authToken, advertiserId, since, until) 
 }
 // TikTok devuelve todos los números como texto. "total_complete_payment_rate" es, pese al nombre,
 // el valor total de las compras (revenue) — ROAS = revenue / gasto.
-async function fetchTikTokClient(authToken, advertiserId, since, until, leads) {
-  const [totRows, dayRows, campRows, adRows] = await Promise.all(
-    ['tiktok-totals', 'tiktok-daily', 'tiktok-campaigns', 'tiktok-ads'].map(e => fetchTikTokRows(e, authToken, advertiserId, since, until))
-  );
+async function fetchTikTokClient(authToken, advertiserId, since, until, leads, prevSince, prevUntil) {
+  const [totRows, dayRows, campRows, adRows, prevRows] = await Promise.all([
+    ...['tiktok-totals', 'tiktok-daily', 'tiktok-campaigns', 'tiktok-ads'].map(e => fetchTikTokRows(e, authToken, advertiserId, since, until)),
+    fetchTikTokRows('tiktok-totals', authToken, advertiserId, prevSince, prevUntil).catch(() => [])
+  ]);
   const n = v => +v || 0;
   const parse = r => {
     const m = r.metrics || {};
@@ -991,8 +992,9 @@ async function fetchTikTokClient(authToken, advertiserId, since, until, leads) {
   const tot = totRows[0] ? parse(totRows[0]) : { m: {}, spend: 0, revenue: 0, impr: 0, clicks: 0, conv: 0, roas: null };
   const days = dayRows.map(r => {
     const d = parse(r);
-    return { date: (r.dimensions.stat_time_day || '').slice(0, 10), gasto: Math.round(d.spend), conv: d.conv, cpa: d.conv > 0 ? Math.round(d.spend/d.conv) : 0, roas: d.roas };
+    return { date: (r.dimensions.stat_time_day || '').slice(0, 10), gasto: Math.round(d.spend), conv: d.conv, cpa: d.conv > 0 ? Math.round(d.spend/d.conv) : 0, roas: d.roas, impr: d.impr, clicks: d.clicks, revenue: d.revenue };
   }).sort((a, b) => a.date < b.date ? -1 : 1);
+  const prev = prevRows[0] ? parse(prevRows[0]) : null;
   const plays = n(tot.m.video_play_actions);
   const campaigns = campRows.map(r => { const d = parse(r); return { name: d.m.campaign_name || r.dimensions.campaign_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr }; })
     .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
@@ -1005,6 +1007,7 @@ async function fetchTikTokClient(authToken, advertiserId, since, until, leads) {
     live: {
       days, campaigns, videos,
       reach: n(tot.m.reach), revenue: tot.revenue,
+      prev: prev && { spend: prev.spend, revenue: prev.revenue, impr: prev.impr, clicks: prev.clicks, conv: prev.conv, reach: n(prev.m.reach) },
       video: { plays, v6: n(tot.m.video_watched_6s), p25: n(tot.m.video_views_p25), p50: n(tot.m.video_views_p50), p75: n(tot.m.video_views_p75), p100: n(tot.m.video_views_p100), avgPlay: n(tot.m.average_video_play), likes: n(tot.m.likes), comments: n(tot.m.comments), shares: n(tot.m.shares) }
     }
   };
@@ -1025,6 +1028,11 @@ async function buildClients(period) {
   const scale = raw => raw ? { spend: Math.round(raw.spend*f), roas: raw.roas, conv: Math.round(raw.conv*f), impr: Math.round(raw.impr*f), clicks: Math.round(raw.clicks*f), trend: raw.trend.map(v => Math.round(v*f)) } : null;
   const { from, to } = currentPeriodDates();
   const sinceStr = ymd(from), untilStr = ymd(to);
+  // Período anterior de igual longitud, para las variaciones "vs período anterior".
+  const lengthDays = Math.round((to - from) / 86400000) + 1;
+  const prevToD = new Date(from); prevToD.setDate(prevToD.getDate() - 1);
+  const prevFromD = new Date(prevToD); prevFromD.setDate(prevFromD.getDate() - (lengthDays - 1));
+  const prevSince = ymd(prevFromD), prevUntil = ymd(prevToD);
   const authToken = state.session ? state.session.access_token : null;
   return Promise.all(MOCK_SHEET.map(async row => {
     const p = MOCK_PLATFORMS[row.metaId] || {};
@@ -1039,10 +1047,7 @@ async function buildClients(period) {
         // de un período anterior de igual longitud — no el primer día contra el último día
         // (eso es lo que hace deriveMetrics por defecto, pensado para el mock, muy ruidoso con
         // datos reales día a día).
-        const lengthDays = Math.round((to - from) / 86400000) + 1;
-        const prevTo = new Date(from); prevTo.setDate(prevTo.getDate() - 1);
-        const prevFrom = new Date(prevTo); prevFrom.setDate(prevFrom.getDate() - (lengthDays - 1));
-        const prevTotals = await fetchMetaTotals(authToken, accountId, ymd(prevFrom), ymd(prevTo));
+        const prevTotals = await fetchMetaTotals(authToken, accountId, prevSince, prevUntil);
         if (prevTotals) {
           const revenue = metaRaw.roas != null ? metaRaw.spend * metaRaw.roas : null;
           const cpa = metaRaw.conv > 0 ? metaRaw.spend / metaRaw.conv : null;
@@ -1069,7 +1074,7 @@ async function buildClients(period) {
     let tiktokRaw = scale(p.tiktok), tiktokLive = null, tiktokError = null;
     if (row.tiktokId && authToken) {
       try {
-        const t = await fetchTikTokClient(authToken, row.tiktokId, sinceStr, untilStr, isLeads(row));
+        const t = await fetchTikTokClient(authToken, row.tiktokId, sinceStr, untilStr, isLeads(row), prevSince, prevUntil);
         tiktokRaw = t.raw; tiktokLive = t.live;
       } catch (e) { tiktokError = e.message; }
     }
@@ -2646,24 +2651,47 @@ function tiktokSectionHTML(c) {
   }
   const leadsT = isLeads(c);
   const t = effThresholds(c);
-  const m = deriveMetrics(R);
-  const reach = L.reach;
+  const reach = L.reach, P = L.prev;
+  const revenue = Math.round(L.revenue);
   const freq = reach>0 ? R.impr/reach : null;
+  const ctr = R.impr>0 ? R.clicks/R.impr*100 : null;
   const cpc = R.clicks>0 ? R.spend/R.clicks : null;
   const cpm = R.impr>0 ? R.spend/R.impr*1000 : null;
-  const revenue = Math.round(L.revenue);
+  const cpa = R.conv>0 ? R.spend/R.conv : null;
+  const tasaConv = R.clicks>0 ? R.conv/R.clicks*100 : null;
+  const valorProm = R.conv>0 ? L.revenue/R.conv : null;
+  // Mismas métricas del período anterior, para el "% vs período anterior" de cada tarjeta.
+  const pv = P ? {
+    ctr: P.impr>0 ? P.clicks/P.impr*100 : null, cpc: P.clicks>0 ? P.spend/P.clicks : null, cpm: P.impr>0 ? P.spend/P.impr*1000 : null,
+    cpa: P.conv>0 ? P.spend/P.conv : null, roas: P.spend>0 ? P.revenue/P.spend : null, tasaConv: P.clicks>0 ? P.conv/P.clicks*100 : null,
+    valorProm: P.conv>0 ? P.revenue/P.conv : null, freq: P.reach>0 ? P.impr/P.reach : null
+  } : null;
+  const dl = (cur, prevVal) => (P && cur != null && prevVal != null) ? pctDelta(cur, prevVal) : null;
+  // Líneas de tendencia: evolución día a día real del período.
+  const ds = L.days;
+  const sGasto = ds.map(d => d.gasto), sRev = ds.map(d => d.revenue), sRoas = ds.map(d => d.roas), sCpa = ds.map(d => d.cpa || null);
+  const sCtr = ds.map(d => d.impr>0 ? d.clicks/d.impr*100 : null), sCpc = ds.map(d => d.clicks>0 ? d.gasto/d.clicks : null);
+  const sCpm = ds.map(d => d.impr>0 ? d.gasto/d.impr*1000 : null), sImpr = ds.map(d => d.impr), sConv = ds.map(d => d.conv);
+  const sTasa = ds.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null), sVal = ds.map(d => d.conv>0 ? d.revenue/d.conv : null);
 
   const kpis = [
-    execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', null, R.trend),
-    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leadsT?'objetivo leads':'revenue atribuido', 'green', null, null),
-    execCard('ROAS', leadsT?'—':(m.roas!=null?fmtRoas(m.roas):'—'), leadsT?'obj. leads':'retorno', 'green', null, null),
-    execCard('CPA', m.cpa!=null?fmtMoney(m.cpa):'—', leadsT?'costo por lead':'costo por compra', 'amber', null, null),
-    execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, null),
-    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', null, null),
-    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', null, null),
-    execCard('Alcance', fmtInt(reach), 'personas', 'purple', null, null),
-    execCard('Impresiones', fmtInt(R.impr), '', 'purple', null, null),
-    execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', null, null)
+    execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', dl(R.spend, P&&P.spend), sGasto),
+    execCard('Ventas', fmtMoney(revenue), leadsT?'objetivo leads':'revenue atribuido', 'green', dl(L.revenue, P&&P.revenue), sRev),
+    execCard('ROAS', leadsT?'—':(R.roas!=null?fmtRoas(R.roas):'—'), leadsT?'obj. leads':'retorno', 'green', leadsT?null:dl(R.roas, pv&&pv.roas), leadsT?null:sRoas),
+    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leadsT?'costo por lead':'costo por compra', 'amber', dl(cpa, pv&&pv.cpa), sCpa),
+    execCard('CTR', fmtPct(ctr), 'click-through', '', dl(ctr, pv&&pv.ctr), sCtr),
+    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', dl(cpc, pv&&pv.cpc), sCpc),
+    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', dl(cpm, pv&&pv.cpm), sCpm),
+    execCard('Alcance', fmtInt(reach), 'personas', 'purple', dl(reach, P&&P.reach), null),
+    execCard('Impresiones', fmtInt(R.impr), '', 'purple', dl(R.impr, P&&P.impr), sImpr),
+    execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', dl(freq, pv&&pv.freq), null)
+  ].join('');
+
+  const convKpis = [
+    execCard('Tasa de conversión', fmtPct(tasaConv), leadsT?'leads / clics':'compras / clics', 'green', dl(tasaConv, pv&&pv.tasaConv), sTasa),
+    execCard('Valor promedio', (valorProm!=null && !leadsT)?fmtMoney(valorProm):'—', 'ticket promedio', '', leadsT?null:dl(valorProm, pv&&pv.valorProm), leadsT?null:sVal),
+    execCard('Revenue', fmtMoney(revenue), 'valor de conversión', 'green', dl(L.revenue, P&&P.revenue), sRev),
+    execCard(leadsT?'Leads':'Compras', fmtInt(R.conv), '', 'green', dl(R.conv, P&&P.conv), sConv)
   ].join('');
 
   const V = L.video;
@@ -2725,6 +2753,8 @@ function tiktokSectionHTML(c) {
   return `
     <div class="exec-sub">Resumen ejecutivo · Performance</div>
     <div class="exec-grid">${kpis}</div>
+    <div class="exec-sub">Resumen ejecutivo · Conversión</div>
+    <div class="exec-grid conv-grid">${convKpis}</div>
     <div class="exec-sub">Resumen ejecutivo · Video</div>
     <div class="exec-grid conv-grid">${videoKpis}</div>
     ${pacingWidgetHTML(c, 'tiktok')}

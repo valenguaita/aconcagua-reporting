@@ -1333,18 +1333,23 @@ function renderAlertReasons() {
 }
 
 /* ===== 3. TABLERO CLIENTES ===== */
-function sparkline(arr, w=70, h=24, dirOverride, fixedColor) {
-  const vals = (arr || []).filter(v => v != null);
+function sparkline(arr, w=70, h=24, dirOverride, fixedColor, tip) {
+  const pairs = (arr || []).map((v, i) => ({ v, label: tip && tip.labels ? tip.labels[i] : null })).filter(p => p.v != null);
+  const vals = pairs.map(p => p.v);
   if (vals.length < 2 || vals.every(v => v === 0)) return '<span class="muted-dash">—</span>';
   const max=Math.max(...vals),min=Math.min(...vals),range=(max-min)||1;
-  const pts = vals.map((v,i) => `${(i/(vals.length-1))*w},${h-((v-min)/range)*h}`).join(' ');
+  const px = i => (i/(vals.length-1))*w, py = v => h-((v-min)/range)*h;
+  const pts = vals.map((v,i) => `${px(i)},${py(v)}`).join(' ');
+  // tip: {labels, fmt} — cada punto lleva un tooltip nativo con "día: valor" al pasar el mouse.
+  const r = Math.max(1.75, Math.min(4, w/(vals.length-1)/2));
+  const dots = tip ? pairs.map((p, i) => `<circle cx="${px(i)}" cy="${py(p.v)}" r="${r}" fill="transparent"><title>${p.label ? esc(fmtShortDate(p.label)) + ': ' : ''}${esc(tip.fmt(p.v))}</title></circle>`).join('') : '';
   // fixedColor: un color fijo (no ligado a si sube o baja) — para cuando la línea es solo "así
   // se movió día a día" y el veredicto real ya lo dice el cartel de al lado con otro criterio
   // (vs. período anterior), no conviene que el color de la línea parezca un segundo veredicto.
   // dirOverride: cuando la línea SÍ es el único indicador (p.ej. la tabla de cartera), el color
   // sigue ese signo en vez del de los extremos de esta serie.
   const col = fixedColor || ((dirOverride != null ? dirOverride >= 0 : vals[vals.length-1] >= vals[0]) ? 'var(--green)' : 'var(--red)');
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
 }
 function trendCell(c, m) {
   if (!m || m.spend === 0) return '<span class="muted-dash">—</span>';
@@ -1770,12 +1775,17 @@ function varBadge(pct) {
   return `<span class="var-badge v-${dir}">${arrow} ${sign}${pct}%</span>`;
 }
 const EXEC_CARD_SPARK_COLOR = { green: 'var(--green)', blue: 'var(--meta)', amber: 'var(--google)', red: 'var(--red)', purple: '#A88AFF' };
-function execCard(l,v,s,cls,delta,spark) {
+function execCard(l,v,s,cls,delta,spark,tip) {
   // El color de esta línea es fijo (el mismo acento de la tarjeta), no depende de si sube o baja:
   // acá el veredicto ya lo da el cartel "+X% / -X%" de abajo — la línea solo aporta la forma real
   // día a día, no un segundo veredicto que podría no coincidir visualmente con el primero.
   const sparkCol = EXEC_CARD_SPARK_COLOR[cls] || 'var(--accent)';
-  return `<div class="exec-card ${cls||''}"><div class="l">${l}</div><div class="v-row"><div class="v num">${v}</div>${spark&&spark.filter(x=>x!=null).length>1?`<div class="spark">${sparkline(spark, 70, 24, null, sparkCol)}</div>`:''}</div><div class="s">${s||''}${delta!=null?varBadge(delta):''}</div></div>`;
+  return `<div class="exec-card ${cls||''}"><div class="l">${l}</div><div class="v-row"><div class="v num">${v}</div>${spark&&spark.filter(x=>x!=null).length>1?`<div class="spark">${sparkline(spark, 70, 24, null, sparkCol, tip)}</div>`:''}</div><div class="s">${s||''}${delta!=null?varBadge(delta):''}</div></div>`;
+}
+// El día de hoy todavía está incompleto: dibujarlo hace caer la línea al final sin que haya pasado nada real.
+function sparkDays(list) {
+  const today = ymd(new Date());
+  return (list.length > 2 && list[list.length-1].date === today) ? list.slice(0, -1) : list;
 }
 function cliChangePeriod(period, from, to) {
   state.period = period;
@@ -2668,30 +2678,32 @@ function tiktokSectionHTML(c) {
   } : null;
   const dl = (cur, prevVal) => (P && cur != null && prevVal != null) ? pctDelta(cur, prevVal) : null;
   // Líneas de tendencia: evolución día a día real del período.
-  const ds = L.days;
+  const ds = sparkDays(L.days);
+  const tl = ds.map(d => d.date);
+  const tM = { labels: tl, fmt: fmtMoney }, tR = { labels: tl, fmt: fmtRoas }, tP = { labels: tl, fmt: fmtPct }, tI = { labels: tl, fmt: fmtInt };
   const sGasto = ds.map(d => d.gasto), sRev = ds.map(d => d.revenue), sRoas = ds.map(d => d.roas), sCpa = ds.map(d => d.cpa || null);
   const sCtr = ds.map(d => d.impr>0 ? d.clicks/d.impr*100 : null), sCpc = ds.map(d => d.clicks>0 ? d.gasto/d.clicks : null);
   const sCpm = ds.map(d => d.impr>0 ? d.gasto/d.impr*1000 : null), sImpr = ds.map(d => d.impr), sConv = ds.map(d => d.conv);
   const sTasa = ds.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null), sVal = ds.map(d => d.conv>0 ? d.revenue/d.conv : null);
 
   const kpis = [
-    execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', dl(R.spend, P&&P.spend), sGasto),
-    execCard('Ventas', fmtMoney(revenue), leadsT?'objetivo leads':'revenue atribuido', 'green', dl(L.revenue, P&&P.revenue), sRev),
-    execCard('ROAS', leadsT?'—':(R.roas!=null?fmtRoas(R.roas):'—'), leadsT?'obj. leads':'retorno', 'green', leadsT?null:dl(R.roas, pv&&pv.roas), leadsT?null:sRoas),
-    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leadsT?'costo por lead':'costo por compra', 'amber', dl(cpa, pv&&pv.cpa), sCpa),
-    execCard('CTR', fmtPct(ctr), 'click-through', '', dl(ctr, pv&&pv.ctr), sCtr),
-    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', dl(cpc, pv&&pv.cpc), sCpc),
-    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', dl(cpm, pv&&pv.cpm), sCpm),
+    execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', dl(R.spend, P&&P.spend), sGasto, tM),
+    execCard('Ventas', fmtMoney(revenue), leadsT?'objetivo leads':'revenue atribuido', 'green', dl(L.revenue, P&&P.revenue), sRev, tM),
+    execCard('ROAS', leadsT?'—':(R.roas!=null?fmtRoas(R.roas):'—'), leadsT?'obj. leads':'retorno', 'green', leadsT?null:dl(R.roas, pv&&pv.roas), leadsT?null:sRoas, tR),
+    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leadsT?'costo por lead':'costo por compra', 'amber', dl(cpa, pv&&pv.cpa), sCpa, tM),
+    execCard('CTR', fmtPct(ctr), 'click-through', '', dl(ctr, pv&&pv.ctr), sCtr, tP),
+    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', dl(cpc, pv&&pv.cpc), sCpc, tM),
+    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', dl(cpm, pv&&pv.cpm), sCpm, tM),
     execCard('Alcance', fmtInt(reach), 'personas', 'purple', dl(reach, P&&P.reach), null),
-    execCard('Impresiones', fmtInt(R.impr), '', 'purple', dl(R.impr, P&&P.impr), sImpr),
+    execCard('Impresiones', fmtInt(R.impr), '', 'purple', dl(R.impr, P&&P.impr), sImpr, tI),
     execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', dl(freq, pv&&pv.freq), null)
   ].join('');
 
   const convKpis = [
-    execCard('Tasa de conversión', fmtPct(tasaConv), leadsT?'leads / clics':'compras / clics', 'green', dl(tasaConv, pv&&pv.tasaConv), sTasa),
-    execCard('Valor promedio', (valorProm!=null && !leadsT)?fmtMoney(valorProm):'—', 'ticket promedio', '', leadsT?null:dl(valorProm, pv&&pv.valorProm), leadsT?null:sVal),
-    execCard('Revenue', fmtMoney(revenue), 'valor de conversión', 'green', dl(L.revenue, P&&P.revenue), sRev),
-    execCard(leadsT?'Leads':'Compras', fmtInt(R.conv), '', 'green', dl(R.conv, P&&P.conv), sConv)
+    execCard('Tasa de conversión', fmtPct(tasaConv), leadsT?'leads / clics':'compras / clics', 'green', dl(tasaConv, pv&&pv.tasaConv), sTasa, tP),
+    execCard('Valor promedio', (valorProm!=null && !leadsT)?fmtMoney(valorProm):'—', 'ticket promedio', '', leadsT?null:dl(valorProm, pv&&pv.valorProm), leadsT?null:sVal, tM),
+    execCard('Revenue', fmtMoney(revenue), 'valor de conversión', 'green', dl(L.revenue, P&&P.revenue), sRev, tM),
+    execCard(leadsT?'Leads':'Compras', fmtInt(R.conv), '', 'green', dl(R.conv, P&&P.conv), sConv, tI)
   ].join('');
 
   const V = L.video;
@@ -2966,7 +2978,9 @@ function renderCliente() {
   // La línea vuelve a mostrar la evolución real día a día (o semana a semana en el demo) — el
   // color ya no depende de ella (ver EXEC_CARD_SPARK_COLOR), así que no hace falta reducirla a
   // 2 puntos para evitar contradicciones: mostrar la forma real aporta más que una diagonal sola.
-  const liveDays = (live && c.metaLiveDays) ? c.metaLiveDays : null;
+  const liveDays = (live && c.metaLiveDays) ? sparkDays(c.metaLiveDays) : null;
+  const mLbl = liveDays ? liveDays.map(d => d.date) : null;
+  const mM = mLbl && { labels: mLbl, fmt: fmtMoney }, mR = mLbl && { labels: mLbl, fmt: fmtRoas }, mP = mLbl && { labels: mLbl, fmt: fmtPct }, mI = mLbl && { labels: mLbl, fmt: fmtInt };
   const gastoSpark = liveDays ? liveDays.map(d => d.gasto) : (w && w.gasto);
   const revSpark = liveDays ? (!leads ? liveDays.map(d => d.roas!=null ? d.gasto*d.roas : null) : null) : revSeries;
   const roasSpark = liveDays ? (!leads ? liveDays.map(d => d.roas) : null) : (!leads ? (w && w.roas) : null);
@@ -2975,11 +2989,11 @@ function renderCliente() {
   const convSpark = liveDays ? liveDays.map(d => d.conv) : convSeries;
 
   const perf = [
-    execCard('Inversión', fmtMoney(spend), periodLabel(), 'blue', gastoD, gastoSpark),
-    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leads?'objetivo leads':'revenue atribuido', 'green', revD, revSpark),
-    execCard('ROAS', leads?'—':fmtRoas(roas), leads?'obj. leads':'retorno', 'green', roasD, roasSpark),
-    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leads?'costo por lead':'costo por compra', 'amber', cpaD, cpaSpark),
-    execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, ctrSpark),
+    execCard('Inversión', fmtMoney(spend), periodLabel(), 'blue', gastoD, gastoSpark, mM),
+    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leads?'objetivo leads':'revenue atribuido', 'green', revD, revSpark, mM),
+    execCard('ROAS', leads?'—':fmtRoas(roas), leads?'obj. leads':'retorno', 'green', roasD, roasSpark, mR),
+    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leads?'costo por lead':'costo por compra', 'amber', cpaD, cpaSpark, mM),
+    execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, ctrSpark, mP),
     execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', genericD, null),
     execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', genericD, null),
     execCard('Alcance', fmtInt(reach), 'personas', 'purple', genericD, null),
@@ -2987,10 +3001,10 @@ function renderCliente() {
     execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', null, null)
   ].join('');
   const conv = [
-    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', convD, convSpark),
+    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', convD, liveDays ? liveDays.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null) : convSpark, mP),
     execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', null, null),
-    execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSpark),
-    execCard(leads?'Leads':'Compras', fmtInt(purchases), '', 'green', convD, convSpark),
+    execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSpark, mM),
+    execCard(leads?'Leads':'Compras', fmtInt(purchases), '', 'green', convD, convSpark, mI),
     execCard('Add to cart', atc!=null?fmtInt(atc):'—', leads?'no aplica':'', 'amber', null, null),
     execCard('Checkouts', checkout!=null?fmtInt(checkout):'—', leads?'no aplica':'', 'amber', null, null)
   ].join('');

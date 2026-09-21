@@ -313,6 +313,7 @@
   .cli-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0 4px; }
   .cli-head h2 { font-size: 18px; margin: 0; }
   .cli-head .select { min-width: 200px; }
+  #sparkTip { position: fixed; z-index: 300; display: none; pointer-events: none; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; color: var(--text); box-shadow: var(--shadow-md); white-space: nowrap; }
   .cli-combo { position: relative; display: inline-block; }
   .cli-select-btn { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .cli-select-btn .dr-chev { flex: none; opacity: .55; transition: transform .15s ease; }
@@ -1340,30 +1341,34 @@ function sparkline(arr, w=70, h=24, dirOverride, fixedColor, tip) {
   const max=Math.max(...vals),min=Math.min(...vals),range=(max-min)||1;
   const px = i => (i/(vals.length-1))*w, py = v => h-((v-min)/range)*h;
   const pts = vals.map((v,i) => `${px(i)},${py(v)}`).join(' ');
-  // tip: {labels, fmt} — cada punto lleva un tooltip nativo con "día: valor" al pasar el mouse.
-  const r = Math.max(1.75, Math.min(4, w/(vals.length-1)/2));
-  const dots = tip ? pairs.map((p, i) => `<circle cx="${px(i)}" cy="${py(p.v)}" r="${r}" fill="transparent"><title>${p.label ? esc(fmtShortDate(p.label)) + ': ' : ''}${esc(tip.fmt(p.v))}</title></circle>`).join('') : '';
+  // tip: {labels, fmt} — al pasar el mouse se muestra "día: valor" del punto más cercano
+  // (ver el manejador global de #sparkTip); los puntos viajan en data-sp.
+  const spData = tip ? esc(JSON.stringify(pairs.map((p, i) => ({ x: +px(i).toFixed(1), y: +py(p.v).toFixed(1), t: (p.label ? fmtShortDate(p.label) + ': ' : '') + tip.fmt(p.v) })))) : '';
   // fixedColor: un color fijo (no ligado a si sube o baja) — para cuando la línea es solo "así
   // se movió día a día" y el veredicto real ya lo dice el cartel de al lado con otro criterio
   // (vs. período anterior), no conviene que el color de la línea parezca un segundo veredicto.
   // dirOverride: cuando la línea SÍ es el único indicador (p.ej. la tabla de cartera), el color
   // sigue ese signo en vez del de los extremos de esta serie.
   const col = fixedColor || ((dirOverride != null ? dirOverride >= 0 : vals[vals.length-1] >= vals[0]) ? 'var(--green)' : 'var(--red)');
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"${tip ? ` data-sp="${spData}"` : ''}>${tip ? `<rect width="${w}" height="${h}" fill="transparent"/>` : ''}<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>${tip ? `<circle class="sp-dot" r="3" fill="${col}" style="display:none"/>` : ''}</svg>`;
 }
 function trendCell(c, m) {
   if (!m || m.spend === 0) return '<span class="muted-dash">—</span>';
   // Acá no interesa "cuánto se gastó" (más gasto no es ni bueno ni malo) sino si la cuenta va
   // mejor o peor: ROAS para ventas, CPA para leads (más barato = mejor, por eso se invierte el color).
   const leads = isLeads(c);
-  const metaLiveOk = state.platform === 'meta' && c.metaLive && c.platforms.meta;
+  // "Todos" equivale a Meta mientras el cliente no tenga Google conectado.
+  const metaLiveOk = (state.platform === 'meta' || (state.platform === 'todos' && !c.platforms.google)) && c.metaLive && c.platforms.meta;
   const w = c.weekly;
+  // Línea: evolución diaria real del período (sin el día de hoy, que está incompleto), con tooltip.
+  const liveSeries = (metaLiveOk && c.metaLiveDays) ? sparkDays(c.metaLiveDays) : null;
+  const tip = liveSeries && { labels: liveSeries.map(d => d.date), fmt: leads ? fmtMoney : fmtRoas };
   let value, deltaPct, spark;
   if (leads) {
     value = m.cpa;
     if (metaLiveOk && c.platforms.meta.cpaD != null) {
       deltaPct = c.platforms.meta.cpaD;
-      spark = (c.platforms.meta.prevCpa != null && value != null) ? [c.platforms.meta.prevCpa, value] : null;
+      spark = liveSeries ? liveSeries.map(d => d.cpa || null) : ((c.platforms.meta.prevCpa != null && value != null) ? [c.platforms.meta.prevCpa, value] : null);
     } else {
       spark = (w && w.cpa && w.cpa.length > 1) ? [w.cpa[0], w.cpa[w.cpa.length-1]] : null;
       deltaPct = spark ? seriesDelta(w.cpa) : null;
@@ -1372,7 +1377,7 @@ function trendCell(c, m) {
     value = m.roas;
     if (metaLiveOk && c.platforms.meta.roasD != null) {
       deltaPct = c.platforms.meta.roasD;
-      spark = (c.platforms.meta.prevRoas != null && value != null) ? [c.platforms.meta.prevRoas, value] : null;
+      spark = liveSeries ? liveSeries.map(d => d.roas) : ((c.platforms.meta.prevRoas != null && value != null) ? [c.platforms.meta.prevRoas, value] : null);
     } else {
       spark = (w && w.roas && w.roas.length > 1) ? [w.roas[0], w.roas[w.roas.length-1]] : null;
       deltaPct = spark ? seriesDelta(w.roas) : null;
@@ -1383,7 +1388,7 @@ function trendCell(c, m) {
   const favorable = Math.abs(deltaPct) <= 1 ? null : (leads ? deltaPct < 0 : deltaPct > 0);
   const colorClass = favorable == null ? 'flat' : (favorable ? 'up' : 'down');
   const sign = deltaPct>0 ? '+' : '';
-  return `<div class="trend ${colorClass}">${sparkline(spark, 70, 24, favorable==null?null:(favorable?1:-1))}<span class="pct">${arrow} ${sign}${deltaPct}%</span></div>`;
+  return `<div class="trend ${colorClass}">${sparkline(spark, 70, 24, favorable==null?null:(favorable?1:-1), null, tip)}<span class="pct">${arrow} ${sign}${deltaPct}%</span></div>`;
 }
 function teamCell(c) {
   const members = [c.owner, ...c.coOwners];
@@ -3185,6 +3190,33 @@ async function initAuth() {
   if (session) { state.session = session; await loadSharedData(); startApp(false); }
   else { showLogin(); }
 }
+
+/* Tooltip instantáneo de las líneas de tendencia (svg[data-sp]) */
+const sparkTipEl = document.createElement('div');
+sparkTipEl.id = 'sparkTip';
+document.body.appendChild(sparkTipEl);
+function hideSparkTip() {
+  sparkTipEl.style.display = 'none';
+  document.querySelectorAll('.sp-dot').forEach(d => { d.style.display = 'none'; });
+}
+document.addEventListener('mousemove', e => {
+  const svg = e.target.closest && e.target.closest('svg[data-sp]');
+  if (!svg) { if (sparkTipEl.style.display !== 'none') hideSparkTip(); return; }
+  if (!svg._pts) { try { svg._pts = JSON.parse(svg.dataset.sp); } catch (err) { return; } }
+  const rect = svg.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (svg.viewBox.baseVal.width / rect.width);
+  let best = svg._pts[0];
+  svg._pts.forEach(p => { if (Math.abs(p.x - x) < Math.abs(best.x - x)) best = p; });
+  const dot = svg.querySelector('.sp-dot');
+  document.querySelectorAll('.sp-dot').forEach(d => { if (d !== dot) d.style.display = 'none'; });
+  if (dot) { dot.setAttribute('cx', best.x); dot.setAttribute('cy', best.y); dot.style.display = ''; }
+  sparkTipEl.textContent = best.t;
+  sparkTipEl.style.display = 'block';
+  const tw = sparkTipEl.offsetWidth;
+  sparkTipEl.style.left = Math.min(e.clientX + 12, window.innerWidth - tw - 8) + 'px';
+  sparkTipEl.style.top = (e.clientY + 16) + 'px';
+});
+window.addEventListener('scroll', hideSparkTip, true);
 
 wireEvents();
 initAuth();

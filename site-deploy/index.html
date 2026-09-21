@@ -690,14 +690,14 @@ const sb = (typeof supabase !== 'undefined' && /^https?:\/\//.test(SUPABASE_URL)
 
 /* ===== MOCK ===== */
 const MOCK_SHEET = [
-  { status:'Activo',   categoria:'A', nombre:'PROTA',               owner:'Valen',  coOwners:[],                metaId:'999', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'PROTA',               owner:'Valen',  coOwners:[],                metaId:'999', tiktokId:'7631301046863822855', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'FUEL',                owner:'Valen',  coOwners:[],                metaId:'1000', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Drink Suma',          owner:'Valen',  coOwners:[],                metaId:'1001', targetRoas:4,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Skinfree',            owner:'Valen',  coOwners:[],                metaId:'1002', targetRoas:9,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Drink Suma',          owner:'Valen',  coOwners:[],                metaId:'1001', tiktokId:'7512862999552524306', targetRoas:4,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Skinfree',            owner:'Valen',  coOwners:[],                metaId:'1002', tiktokId:'7475729974381690896', targetRoas:9,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Beauty Kosme',        owner:'Valen',  coOwners:[],                metaId:'1003', targetRoas:2.5, targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Tina&Co',             owner:'Valen',  coOwners:[],                metaId:'1004', targetRoas:2.5, targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Instituto Dao',       owner:'Valen',  coOwners:[],                metaId:'1005', targetRoas:0,   targetCpa:3000, presupuesto:0,       objetivo:'leads',        ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Image Campus',        owner:'Valen',  coOwners:[],                metaId:'1006', targetRoas:0,   targetCpa:3000, presupuesto:0,       objetivo:'leads',        ticket:0 }
+  { status:'Activo',   categoria:'A', nombre:'Image Campus',        owner:'Valen',  coOwners:[],                metaId:'1006', tiktokId:'7495837284265377808', targetRoas:0,   targetCpa:3000, presupuesto:0,       objetivo:'leads',        ticket:0 }
 ];
 const MOCK_PLATFORMS = {
   '111': { meta:{ spend:300000, roas:3.9, conv:238, impr:2000000, clicks:40000, trend:[230,240,253,268,280,290,300] }, google:{ spend:180000, roas:3.6, conv:125, impr:750000, clicks:13500, trend:[138,145,153,160,168,175,180] }, pinterest:{ spend:95000, roas:3.3, conv:58, impr:620000, clicks:9800, trend:[68,72,78,84,88,92,95] } },
@@ -826,54 +826,6 @@ function generatePinterestCampaigns(c) {
     const conv = clicks>0 ? Math.round(clicks * convRatePerClick * (0.4 + rnd(seed+41)*1.6)) : 0;
     const roas = R.roas != null ? +(R.roas * (0.6 + rnd(seed+3)*0.9)).toFixed(2) : null;
     return { name, spend, conv, roas, ctr };
-  });
-}
-const TIKTOK_CAMPAIGN_POOL = {
-  '222': ['Reach — Descubrimiento', 'Conversiones — Retargeting', 'Traffic — UGC Creators'],
-  '444': ['Reach — Descubrimiento', 'Conversiones — Retargeting', 'Traffic — UGC Creators']
-};
-const TIKTOK_VIDEO_POOL = {
-  '222': ['Rutina de gimnasio en 60 segundos', 'Unboxing proteína FitLife', 'Antes y después — 30 días', 'Reto fitness con influencer', 'Tutorial: shake post entreno'],
-  '444': ['Get ready with me — outfit del día', 'Prueba de talles en cámara', 'Unboxing pedido Moda Bella', 'Transición de outfit viral', 'Styling tips en 30 segundos']
-};
-function generateTikTokCampaigns(c) {
-  const R = c.platforms.tiktok, pool = TIKTOK_CAMPAIGN_POOL[c.metaId];
-  if (!R || R.spend <= 0 || !pool) return [];
-  const baseCtr = R.impr>0 ? R.clicks/R.impr*100 : 1;
-  const weights = pool.map((_,i) => rnd(hashStr(c.metaId+'tcampW'+i)) + 0.4);
-  const wSum = weights.reduce((a,b) => a+b, 0);
-  return pool.map((name, i) => {
-    const seed = hashStr(c.metaId + 'tcamp' + i);
-    const w = weights[i]/wSum;
-    const spend = Math.round(R.spend * w);
-    const impr = Math.max(50, Math.round(R.impr * w));
-    const ctr = +(baseCtr * (0.5 + rnd(seed+11)*1.2)).toFixed(2);
-    const clicks = Math.max(0, Math.round(impr * ctr/100));
-    const convRatePerClick = R.clicks>0 ? R.conv/R.clicks : 0;
-    const conv = clicks>0 ? Math.round(clicks * convRatePerClick * (0.4 + rnd(seed+41)*1.6)) : 0;
-    const roas = R.roas != null ? +(R.roas * (0.6 + rnd(seed+3)*0.9)).toFixed(2) : null;
-    return { name, spend, conv, roas, ctr };
-  });
-}
-function generateTikTokVideos(c) {
-  const R = c.platforms.tiktok, pool = TIKTOK_VIDEO_POOL[c.metaId];
-  if (!R || R.spend <= 0 || !pool) return [];
-  const baseCtr = R.impr>0 ? R.clicks/R.impr*100 : 1;
-  const weights = pool.map((_,i) => rnd(hashStr(c.metaId+'tvidW'+i)) + 0.4);
-  const wSum = weights.reduce((a,b) => a+b, 0);
-  return pool.map((name, i) => {
-    const seed = hashStr(c.metaId + 'tvid' + i);
-    const w = weights[i]/wSum;
-    const spend = Math.round(R.spend * w);
-    const impr = Math.max(50, Math.round(R.impr * w));
-    const ctr = +(baseCtr * (0.5 + rnd(seed+11)*1.2)).toFixed(2);
-    const clicks = Math.max(0, Math.round(impr * ctr/100));
-    const convRatePerClick = R.clicks>0 ? R.conv/R.clicks : 0;
-    const conv = clicks>0 ? Math.round(clicks * convRatePerClick * (0.4 + rnd(seed+41)*1.6)) : 0;
-    const roas = R.roas != null ? +(R.roas * (0.6 + rnd(seed+3)*0.9)).toFixed(2) : null;
-    const views = Math.round(impr * (0.88 + rnd(seed+51)*0.10));
-    const vcr = +(12 + rnd(seed+61)*18).toFixed(1);
-    return { name, spend, conv, roas, ctr, views, vcr };
   });
 }
 const PERIOD_FACTOR = { this_month: 1.0, last_month: 1.75, last_7d: 0.28, last_30d: 1.62 };
@@ -1015,12 +967,54 @@ async function fetchMetaClient(token, accountId, fromDate, toDate) {
   const days = rows.map(metaDayFromRow).sort((a,b) => a.date < b.date ? -1 : 1);
   return { days, raw: metaDaysToRaw(days), weekly: metaDaysToWeekly(days) };
 }
-function liveDaysInRange(c, fromDate, days) {
+/* ===== TikTok Marketing API (datos reales, vía nuestro backend — el token vive en el servidor) ===== */
+async function fetchTikTokRows(endpoint, authToken, advertiserId, since, until) {
+  const url = `/api/${endpoint}?advertiserId=${encodeURIComponent(advertiserId)}&since=${since}&until=${until}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json.data || [];
+}
+// TikTok devuelve todos los números como texto. "total_complete_payment_rate" es, pese al nombre,
+// el valor total de las compras (revenue) — ROAS = revenue / gasto.
+async function fetchTikTokClient(authToken, advertiserId, since, until, leads) {
+  const [totRows, dayRows, campRows, adRows] = await Promise.all(
+    ['tiktok-totals', 'tiktok-daily', 'tiktok-campaigns', 'tiktok-ads'].map(e => fetchTikTokRows(e, authToken, advertiserId, since, until))
+  );
+  const n = v => +v || 0;
+  const parse = r => {
+    const m = r.metrics || {};
+    const spend = n(m.spend), revenue = n(m.total_complete_payment_rate), impr = n(m.impressions), clicks = n(m.clicks);
+    const conv = leads ? n(m.conversion) : n(m.complete_payment);
+    return { m, spend, revenue, impr, clicks, conv, roas: spend > 0 ? +(revenue/spend).toFixed(2) : null, ctr: impr > 0 ? +(clicks/impr*100).toFixed(2) : 0 };
+  };
+  const tot = totRows[0] ? parse(totRows[0]) : { m: {}, spend: 0, revenue: 0, impr: 0, clicks: 0, conv: 0, roas: null };
+  const days = dayRows.map(r => {
+    const d = parse(r);
+    return { date: (r.dimensions.stat_time_day || '').slice(0, 10), gasto: Math.round(d.spend), conv: d.conv, cpa: d.conv > 0 ? Math.round(d.spend/d.conv) : 0, roas: d.roas };
+  }).sort((a, b) => a.date < b.date ? -1 : 1);
+  const plays = n(tot.m.video_play_actions);
+  const campaigns = campRows.map(r => { const d = parse(r); return { name: d.m.campaign_name || r.dimensions.campaign_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr }; })
+    .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
+  const videos = adRows.map(r => {
+    const d = parse(r), p = n(d.m.video_play_actions);
+    return { name: d.m.ad_name || r.dimensions.ad_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0 };
+  }).filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend).slice(0, 10);
+  return {
+    raw: { spend: Math.round(tot.spend), roas: tot.roas, conv: tot.conv, impr: tot.impr, clicks: tot.clicks, trend: days.map(d => d.gasto) },
+    live: {
+      days, campaigns, videos,
+      reach: n(tot.m.reach), revenue: tot.revenue,
+      video: { plays, v6: n(tot.m.video_watched_6s), p25: n(tot.m.video_views_p25), p50: n(tot.m.video_views_p50), p75: n(tot.m.video_views_p75), p100: n(tot.m.video_views_p100), avgPlay: n(tot.m.average_video_play), likes: n(tot.m.likes), comments: n(tot.m.comments), shares: n(tot.m.shares) }
+    }
+  };
+}
+function liveDaysInRange(daysList, fromDate, days) {
   const items = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(fromDate); d.setDate(d.getDate()+i);
     const ds = ymd(d);
-    const row = c.metaLiveDays.find(r => r.date === ds);
+    const row = daysList.find(r => r.date === ds);
     items.push({ date: d, label: d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace(/\.$/,''), gasto: row?row.gasto:0, cpa: row?row.cpa:0, roas: row?row.roas:null, conv: row?row.conv:0 });
   }
   return items;
@@ -1072,7 +1066,14 @@ async function buildClients(period) {
         metaLiveHierarchy = await fetchMetaHierarchy(authToken, accountId, sinceStr, untilStr);
       } catch (e) { metaError = e.message; }
     }
-    return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: scale(p.pinterest), tiktok: scale(p.tiktok) }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy };
+    let tiktokRaw = scale(p.tiktok), tiktokLive = null, tiktokError = null;
+    if (row.tiktokId && authToken) {
+      try {
+        const t = await fetchTikTokClient(authToken, row.tiktokId, sinceStr, untilStr, isLeads(row));
+        tiktokRaw = t.raw; tiktokLive = t.live;
+      } catch (e) { tiktokError = e.message; }
+    }
+    return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: scale(p.pinterest), tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError };
   }));
 }
 
@@ -2051,7 +2052,8 @@ function weeklyForPlatform(c, platform) {
   return { gasto, cpa, roas };
 }
 function dailyTrendData(c, fromDate, days, platform) {
-  if (platform !== 'google' && platform !== 'pinterest' && c.metaLiveDays) return liveDaysInRange(c, fromDate, days);
+  if (platform === 'tiktok') return c.tiktokLive ? liveDaysInRange(c.tiktokLive.days, fromDate, days) : null;
+  if (platform !== 'google' && platform !== 'pinterest' && c.metaLiveDays) return liveDaysInRange(c.metaLiveDays, fromDate, days);
   const w = weeklyForPlatform(c, platform); if (!w || !w.gasto || w.gasto.every(v => !v)) return null;
   const seedTag = platform === 'google' ? 'gd' : platform === 'pinterest' ? 'pd' : platform === 'tiktok' ? 'td' : 'd';
   const items = [];
@@ -2635,18 +2637,21 @@ function topPinsTableHTML(pins) {
   </table></div>`;
 }
 function tiktokSectionHTML(c) {
-  const R = c.platforms.tiktok;
-  if (!R || R.spend <= 0) {
+  const R = c.platforms.tiktok, L = c.tiktokLive;
+  if (c.tiktokError) {
+    return `<div class="fnl" style="text-align:center;color:var(--red)">No se pudieron traer los datos de TikTok: ${esc(c.tiktokError)}</div>`;
+  }
+  if (!R || R.spend <= 0 || !L) {
     return `<div class="fnl" style="text-align:center;color:var(--text-faint)">Sin inversión de TikTok Ads registrada para este cliente en el período.</div>`;
   }
   const leadsT = isLeads(c);
   const t = effThresholds(c);
   const m = deriveMetrics(R);
-  const reach = R.impr>0 ? Math.round(R.impr/2.6) : 0;
+  const reach = L.reach;
   const freq = reach>0 ? R.impr/reach : null;
   const cpc = R.clicks>0 ? R.spend/R.clicks : null;
   const cpm = R.impr>0 ? R.spend/R.impr*1000 : null;
-  const revenue = m.roas!=null ? Math.round(R.spend*m.roas) : null;
+  const revenue = Math.round(L.revenue);
 
   const kpis = [
     execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', null, R.trend),
@@ -2661,17 +2666,12 @@ function tiktokSectionHTML(c) {
     execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', null, null)
   ].join('');
 
-  const vSeed = hashStr(c.metaId+'ttvid');
-  const viewStartRate = 0.88 + rnd(vSeed)*0.10;
-  const videoViews = Math.round(R.impr * viewStartRate);
-  const view6Rate = 30 + rnd(vSeed+1)*25;
-  const views6s = Math.round(videoViews * view6Rate/100);
-  const vtr25 = 55 + rnd(vSeed+2)*15;
-  const vtr50 = vtr25 * (0.55+rnd(vSeed+3)*0.15);
-  const vtr75 = vtr50 * (0.55+rnd(vSeed+4)*0.15);
-  const vtr100 = vtr75 * (0.45+rnd(vSeed+5)*0.2);
-  const avgWatch = 3 + rnd(vSeed+6)*6;
-  const engRate = 2.5 + rnd(vSeed+7)*5.5;
+  const V = L.video;
+  const videoViews = V.plays;
+  const views6s = V.v6;
+  const vtr100 = videoViews>0 ? V.p100/videoViews*100 : 0;
+  const avgWatch = V.avgPlay;
+  const engRate = R.impr>0 ? (V.likes+V.comments+V.shares)/R.impr*100 : 0;
 
   const videoKpis = [
     execCard('Reproducciones de video', fmtInt(videoViews), '', 'blue', null, null),
@@ -2683,10 +2683,10 @@ function tiktokSectionHTML(c) {
 
   const vStages = [
     ['Reproducciones', videoViews],
-    ['Vieron 25%', Math.round(videoViews*vtr25/100)],
-    ['Vieron 50%', Math.round(videoViews*vtr50/100)],
-    ['Vieron 75%', Math.round(videoViews*vtr75/100)],
-    ['Vieron 100%', Math.round(videoViews*vtr100/100)]
+    ['Vieron 25%', V.p25],
+    ['Vieron 50%', V.p50],
+    ['Vieron 75%', V.p75],
+    ['Vieron 100%', V.p100]
   ];
   const vColors = ['#00EABD','#5B9BFF','#A88AFF','#F2B441','#FF6B66'];
   const vMax = videoViews || 1;
@@ -2702,7 +2702,7 @@ function tiktokSectionHTML(c) {
   let ttCampMetric = state.ttCampChartMetric;
   if (leadsT && (ttCampMetric === 'roas' || ttCampMetric === 'ventas')) ttCampMetric = 'gasto';
   const tcm = CAMP_METRICS[ttCampMetric];
-  const ttCampAgg = generateTikTokCampaigns(c);
+  const ttCampAgg = L.campaigns;
   const ttCampTarget = targetForMetric(ttCampMetric, t);
   const ttCampChart = rankedBarsHTML(ttCampAgg, { value: CAMP_VALUE_FN[ttCampMetric], fmt: tcm.fmt, lowerIsBetter: ttCampMetric === 'cpa', target: ttCampTarget, status: statusFnForMetric(ttCampMetric, ttCampTarget), trend: it => synthTrend(`${c.metaId}|ttcamp|${ttCampMetric}|${it.name}`, CAMP_VALUE_FN[ttCampMetric](it), 6), subtitle: it => `Gasto ${fmtCompactMoney(it.spend)} · Conv. ${fmtInt(it.conv)}` });
   const ttCampMetricOpts = Object.entries(CAMP_METRICS).filter(([k]) => k !== 'ctr').map(([k,v]) => {
@@ -2714,7 +2714,7 @@ function tiktokSectionHTML(c) {
   let ttVideoMetric = state.ttVideoMetric;
   if (leadsT && (ttVideoMetric === 'roas' || ttVideoMetric === 'ventas')) ttVideoMetric = 'gasto';
   const tvm = CAMP_METRICS[ttVideoMetric];
-  const videosAgg = generateTikTokVideos(c);
+  const videosAgg = L.videos;
   const ttVideoTarget = targetForMetric(ttVideoMetric, t);
   const topVideosChart = verticalBarsHTML(videosAgg, { value: CAMP_VALUE_FN[ttVideoMetric], fmt: tvm.fmt, lowerIsBetter: ttVideoMetric === 'cpa', target: ttVideoTarget, status: statusFnForMetric(ttVideoMetric, ttVideoTarget), trend: it => synthTrend(`${c.metaId}|ttvidchart|${ttVideoMetric}|${it.name}`, CAMP_VALUE_FN[ttVideoMetric](it), 6), subtitle: it => `Reproducciones ${fmtInt(it.views)} · Compl. ${fmtPct(it.vcr)}` });
   const ttVideoMetricOpts = Object.entries(CAMP_METRICS).map(([k,v]) => {
@@ -2811,7 +2811,7 @@ function renderCliente() {
         </div>
       </div>
       ${periodPickerHTML('cli')}
-    </div><p class="cli-note">Vista ejecutiva — pensada para ver y compartir con el cliente. Datos demo. ${state.cliObjetivo==='leads'?'Simulación de cliente que busca generar clientes potenciales (leads), no ventas online.':'Simulación de cliente de ventas / e-commerce.'}</p>`;
+    </div><p class="cli-note">Vista ejecutiva — pensada para ver y compartir con el cliente.</p>`;
   const wire = () => {
     document.querySelectorAll('#cliObjSeg button').forEach(b => b.addEventListener('click', () => {
       if (state.cliObjetivo === b.dataset.obj) return;

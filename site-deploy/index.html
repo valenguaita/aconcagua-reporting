@@ -3190,7 +3190,20 @@ async function initAuth() {
   });
   const { data: { session } } = await sb.auth.getSession();
   if (session) { state.session = session; await loadSharedData(); startApp(false); }
-  else { showLogin(); }
+  else { showLogin(); showLinkError(); }
+}
+// Si el link del mail falló, Supabase vuelve con el motivo en la URL (#error_code=...). Se muestra en
+// el login (antes quedaba escondido) y se limpia la URL.
+function showLinkError() {
+  const hp = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const code = hp.get('error_code');
+  if (!code) return;
+  const known = { otp_expired: 'el link venció o ya fue usado (a veces el filtro del mail lo abre antes que vos)' };
+  const detail = known[code] || (hp.get('error_description') || code).replace(/\+/g, ' ');
+  const el = document.getElementById('loginStatus');
+  el.textContent = `El link del mail no funcionó: ${detail}. Si no te deja pedir otro, avisale a quien administra Aconcagua para que te reenvíe la confirmación.`;
+  el.style.display = 'block';
+  history.replaceState(null, '', location.pathname + location.search);
 }
 
 /* Tooltip instantáneo de las líneas de tendencia (svg[data-sp]) */

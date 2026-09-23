@@ -694,9 +694,9 @@ const MOCK_SHEET = [
   { status:'Activo',   categoria:'A', nombre:'PROTA',               owner:'Valen',  coOwners:[],                metaId:'999', tiktokId:'7631301046863822855', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'FUEL',                owner:'Valen',  coOwners:[],                metaId:'1000', targetRoas:7,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Drink Suma',          owner:'Valen',  coOwners:[],                metaId:'1001', tiktokId:'7512862999552524306', targetRoas:4,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Skinfree',            owner:'Valen',  coOwners:[],                metaId:'1002', tiktokId:'7475729974381690896', targetRoas:8,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Skinko Argentina',    owner:'Valen',  coOwners:[],                metaId:'888', tiktokId:'7546713739857690625', targetRoas:8,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
-  { status:'Activo',   categoria:'A', nombre:'Celimax',             owner:'Valen',  coOwners:[],                metaId:'1007', tiktokId:'7631233736654422023', targetRoas:8,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Skinfree',            owner:'Valen',  coOwners:[],                metaId:'1002', tiktokId:'7475729974381690896', pinterestId:'549770640356', targetRoas:8,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Skinko Argentina',    owner:'Valen',  coOwners:[],                metaId:'888', tiktokId:'7546713739857690625', pinterestId:'549770640371', targetRoas:8,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
+  { status:'Activo',   categoria:'A', nombre:'Celimax',             owner:'Valen',  coOwners:[],                metaId:'1007', tiktokId:'7631233736654422023', pinterestId:'549770640389', targetRoas:8,   targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Beauty Kosme',       owner:'Valen',  coOwners:[],                metaId:'1003', targetRoas:2.5, targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Tina&Co',             owner:'Valen',  coOwners:[],                metaId:'1004', targetRoas:2.5, targetCpa:3000, presupuesto:0,       objetivo:'conversiones', ticket:0 },
   { status:'Activo',   categoria:'A', nombre:'Instituto Dao',       owner:'Valen',  coOwners:[],                metaId:'1005', targetRoas:0,   targetCpa:3000, presupuesto:0,       objetivo:'leads',        ticket:0 },
@@ -1026,6 +1026,46 @@ function liveDaysInRange(daysList, fromDate, days) {
   return items;
 }
 
+/* ===== Pinterest Ads API (datos reales, vía nuestro backend — el token vive en el servidor) ===== */
+async function fetchPinterestRows(endpoint, authToken, accountId, since, until) {
+  const url = `/api/pinterest-${endpoint}?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json.data || [];
+}
+// Pinterest devuelve el gasto y el revenue en "micro dólares" (valor real × 1.000.000).
+function parsePinterestRow(r) {
+  const n = v => +v || 0;
+  const spend = n(r.SPEND_IN_MICRO_DOLLAR) / 1e6;
+  const revenue = n(r.TOTAL_CHECKOUT_VALUE_IN_MICRO_DOLLAR) / 1e6;
+  const impr = n(r.TOTAL_IMPRESSION), clicks = n(r.OUTBOUND_CLICK_1), closeups = n(r.TOTAL_CLICKTHROUGH), saves = n(r.REPIN_1), conv = n(r.TOTAL_CHECKOUT);
+  return { spend, revenue, impr, clicks, closeups, saves, conv, roas: spend>0 ? +(revenue/spend).toFixed(2) : null, ctr: impr>0 ? +(clicks/impr*100).toFixed(2) : 0 };
+}
+async function fetchPinterestClient(authToken, accountId, since, until, prevSince, prevUntil) {
+  const [totRows, dayRows, campRows, pinRows, prevRows] = await Promise.all([
+    ...['totals', 'daily', 'campaigns', 'pins'].map(e => fetchPinterestRows(e, authToken, accountId, since, until)),
+    fetchPinterestRows('totals', authToken, accountId, prevSince, prevUntil).catch(() => [])
+  ]);
+  const tot = totRows[0] ? parsePinterestRow(totRows[0]) : { spend:0, revenue:0, impr:0, clicks:0, closeups:0, saves:0, conv:0, roas:null, ctr:0 };
+  const days = dayRows.map(r => {
+    const d = parsePinterestRow(r);
+    return { date: r.DATE, gasto: Math.round(d.spend), conv: d.conv, cpa: d.conv > 0 ? Math.round(d.spend/d.conv) : 0, roas: d.roas, impr: d.impr, clicks: d.clicks, revenue: d.revenue, saves: d.saves, closeups: d.closeups };
+  }).sort((a, b) => a.date < b.date ? -1 : 1);
+  const prev = prevRows[0] ? parsePinterestRow(prevRows[0]) : null;
+  const campaigns = campRows.map(r => { const d = parsePinterestRow(r); return { name: r.CAMPAIGN_NAME || r.CAMPAIGN_ID, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr }; })
+    .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
+  const pins = pinRows.map(r => { const d = parsePinterestRow(r); return { name: r.AD_NAME || r.PIN_ID || r.AD_ID, impr: d.impr, saves: d.saves, closeups: d.closeups, clicks: d.clicks, ctr: d.ctr, spend: Math.round(d.spend), conv: d.conv }; })
+    .filter(x => x.impr > 0).sort((a, b) => b.saves - a.saves);
+  return {
+    raw: { spend: Math.round(tot.spend), roas: tot.roas, conv: tot.conv, impr: tot.impr, clicks: tot.clicks, trend: days.map(d => d.gasto) },
+    live: {
+      days, campaigns, pins, revenue: tot.revenue, saves: tot.saves, closeups: tot.closeups,
+      prev: prev && { spend: prev.spend, revenue: prev.revenue, impr: prev.impr, clicks: prev.clicks, conv: prev.conv, saves: prev.saves, closeups: prev.closeups }
+    }
+  };
+}
+
 async function buildClients(period) {
   const f = periodFactor(period);
   const scale = raw => raw ? { spend: Math.round(raw.spend*f), roas: raw.roas, conv: Math.round(raw.conv*f), impr: Math.round(raw.impr*f), clicks: Math.round(raw.clicks*f), trend: raw.trend.map(v => Math.round(v*f)) } : null;
@@ -1081,7 +1121,14 @@ async function buildClients(period) {
         tiktokRaw = t.raw; tiktokLive = t.live;
       } catch (e) { tiktokError = e.message; }
     }
-    return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: scale(p.pinterest), tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError };
+    let pinterestRaw = scale(p.pinterest), pinterestLive = null, pinterestError = null;
+    if (row.pinterestId && authToken) {
+      try {
+        const pi = await fetchPinterestClient(authToken, row.pinterestId, sinceStr, untilStr, prevSince, prevUntil);
+        pinterestRaw = pi.raw; pinterestLive = pi.live;
+      } catch (e) { pinterestError = e.message; }
+    }
+    return { ...row, platforms: { meta: metaRaw, google: scale(p.google), pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError, pinterestLive, pinterestError };
   }));
 }
 
@@ -2075,6 +2122,7 @@ function weeklyForPlatform(c, platform) {
 }
 function dailyTrendData(c, fromDate, days, platform) {
   if (platform === 'tiktok') return c.tiktokLive ? liveDaysInRange(c.tiktokLive.days, fromDate, days) : null;
+  if (platform === 'pinterest' && c.pinterestLive) return liveDaysInRange(c.pinterestLive.days, fromDate, days);
   if (platform !== 'google' && platform !== 'pinterest' && c.metaLiveDays) return liveDaysInRange(c.metaLiveDays, fromDate, days);
   const w = weeklyForPlatform(c, platform); if (!w || !w.gasto || w.gasto.every(v => !v)) return null;
   const seedTag = platform === 'google' ? 'gd' : platform === 'pinterest' ? 'pd' : platform === 'tiktok' ? 'td' : 'd';
@@ -2555,28 +2603,46 @@ function searchTermsTableHTML(sts) {
   </table></div>`;
 }
 function pinterestSectionHTML(c) {
-  const R = c.platforms.pinterest;
+  const R = c.platforms.pinterest, L = c.pinterestLive;
+  if (c.pinterestError) {
+    return `<div class="fnl" style="text-align:center;color:var(--red)">No se pudieron traer los datos de Pinterest: ${esc(c.pinterestError)}</div>`;
+  }
   if (!R || R.spend <= 0) {
     return `<div class="fnl" style="text-align:center;color:var(--text-faint)">Sin inversión de Pinterest Ads registrada para este cliente en el período.</div>`;
   }
   const m = deriveMetrics(R);
   const cpc = R.clicks>0 ? R.spend/R.clicks : null;
 
-  const saveSeed = hashStr(c.metaId+'psave');
-  const saveRatePct = 0.7 + rnd(saveSeed)*1.6;
-  const saves = Math.round(R.impr * saveRatePct/100);
-
-  const pins = generatePins(c);
+  let saves, saveRatePct, pins, P;
+  if (L) {
+    P = L.prev;
+    saves = Math.round(L.saves);
+    saveRatePct = R.impr>0 ? saves/R.impr*100 : 0;
+    pins = L.pins;
+  } else {
+    const saveSeed = hashStr(c.metaId+'psave');
+    saveRatePct = 0.7 + rnd(saveSeed)*1.6;
+    saves = Math.round(R.impr * saveRatePct/100);
+    pins = generatePins(c);
+  }
+  const dl = (cur, prevVal) => (P && cur != null && prevVal != null) ? pctDelta(cur, prevVal) : null;
+  // Líneas de tendencia con datos reales día a día (cuando hay); en modo demo solo la de Costo trae mock.
+  const ds = L ? sparkDays(L.days) : null;
+  const tl = ds ? ds.map(d => d.date) : null;
+  const tM = tl && { labels: tl, fmt: fmtMoney }, tP = tl && { labels: tl, fmt: fmtPct }, tI = tl && { labels: tl, fmt: fmtInt };
+  const sGasto = ds && ds.map(d => d.gasto), sImpr = ds && ds.map(d => d.impr), sClicks = ds && ds.map(d => d.clicks);
+  const sConv = ds && ds.map(d => d.conv), sSaves = ds && ds.map(d => d.saves);
+  const sCtr = ds && ds.map(d => d.impr>0 ? d.clicks/d.impr*100 : null);
 
   const kpis = [
-    execCard('Costo', fmtMoney(R.spend), periodLabel(), 'blue', null, R.trend),
-    execCard('Impresiones', fmtInt(R.impr), '', 'purple', null, null),
-    execCard('Clics salientes', fmtInt(R.clicks), '', '', null, null),
-    execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, null),
+    execCard('Costo', fmtMoney(R.spend), periodLabel(), 'blue', L?dl(R.spend, P&&P.spend):null, L?sGasto:R.trend, tM),
+    execCard('Impresiones', fmtInt(R.impr), '', 'purple', L?dl(R.impr, P&&P.impr):null, sImpr, tI),
+    execCard('Clics salientes', fmtInt(R.clicks), '', '', L?dl(R.clicks, P&&P.clicks):null, sClicks, tI),
+    execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, sCtr, tP),
     execCard('CPC prom.', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', null, null),
-    execCard('Guardados', fmtInt(saves), 'saves', 'green', null, null),
+    execCard('Guardados', fmtInt(saves), 'saves', 'green', L?dl(saves, P&&P.saves):null, sSaves, tI),
     execCard('Tasa de guardado', fmtPct(saveRatePct), 'guardados / impresiones', '', null, null),
-    execCard('Conversiones', fmtInt(R.conv), '', 'green', null, null),
+    execCard('Conversiones', fmtInt(R.conv), '', 'green', L?dl(R.conv, P&&P.conv):null, sConv, tI),
     execCard('Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', 'costo por compra', 'amber', null, null),
     execCard('ROAS', m.roas!=null?fmtRoas(m.roas):'—', 'retorno', 'green', null, null)
   ].join('');
@@ -2587,7 +2653,7 @@ function pinterestSectionHTML(c) {
   let pinCampMetric = state.pinCampChartMetric;
   if (leadsP && (pinCampMetric === 'roas' || pinCampMetric === 'ventas')) pinCampMetric = 'gasto';
   const pcm = CAMP_METRICS[pinCampMetric];
-  const pinCampAgg = generatePinterestCampaigns(c);
+  const pinCampAgg = L ? L.campaigns : generatePinterestCampaigns(c);
   const pinCampTarget = targetForMetric(pinCampMetric, t);
   const pinCampChart = rankedBarsHTML(pinCampAgg, { value: CAMP_VALUE_FN[pinCampMetric], fmt: pcm.fmt, lowerIsBetter: pinCampMetric === 'cpa', target: pinCampTarget, status: statusFnForMetric(pinCampMetric, pinCampTarget), trend: it => synthTrend(`${c.metaId}|pincamp|${pinCampMetric}|${it.name}`, CAMP_VALUE_FN[pinCampMetric](it), 6), subtitle: it => `Gasto ${fmtCompactMoney(it.spend)} · Conv. ${fmtInt(it.conv)}` });
   const pinCampMetricOpts = Object.entries(CAMP_METRICS).filter(([k]) => k !== 'ctr').map(([k,v]) => {

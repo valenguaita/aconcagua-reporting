@@ -1052,7 +1052,7 @@ async function fetchPinterestClient(authToken, accountId, since, until, prevSinc
   const prev = prevRows[0] ? parsePinterestRow(prevRows[0]) : null;
   const campaigns = campRows.map(r => { const d = parsePinterestRow(r); return { name: r.CAMPAIGN_NAME || r.CAMPAIGN_ID, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks }; })
     .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
-  const pins = pinRows.map(r => { const d = parsePinterestRow(r); return { name: r.AD_NAME || r.PIN_ID || r.AD_ID, impr: d.impr, saves: d.saves, closeups: d.closeups, clicks: d.clicks, ctr: d.ctr, spend: Math.round(d.spend), conv: d.conv }; })
+  const pins = pinRows.map(r => { const d = parsePinterestRow(r); return { name: r.AD_NAME || r.PIN_ID || r.AD_ID, impr: d.impr, saves: d.saves, closeups: d.closeups, clicks: d.clicks, ctr: d.ctr, spend: Math.round(d.spend), conv: d.conv, roas: d.roas }; })
     .filter(x => x.impr > 0).sort((a, b) => b.saves - a.saves);
   return {
     raw: { spend: Math.round(tot.spend), roas: tot.roas, conv: tot.conv, impr: tot.impr, clicks: tot.clicks, trend: days.map(d => d.gasto) },
@@ -3288,16 +3288,23 @@ function toast(msg) { const t = document.getElementById('toast'); t.textContent 
 
 async function initAuth() {
   if (!sb) { startApp(true); return; }
+  // Al volver a la pestaña, supabase-js revalida la sesión y vuelve a emitir SIGNED_IN: si la app ya
+  // arrancó con este usuario, solo se refresca el token (sin recargar datos ni volver a Cartera).
+  let startedFor = null;
   sb.auth.onAuthStateChange((event, session) => {
+    if (session) state.session = session;
     if (event === 'SIGNED_IN' && session) {
-      state.session = session;
+      if (startedFor === session.user.id) return;
+      startedFor = session.user.id;
       loadSharedData().then(() => startApp(false));
     }
-    if (event === 'SIGNED_OUT') { state.session = null; showLogin(); }
+    if (event === 'SIGNED_OUT') { startedFor = null; state.session = null; showLogin(); }
   });
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { state.session = session; await loadSharedData(); startApp(false); }
-  else { showLogin(); showLinkError(); }
+  if (session) {
+    state.session = session;
+    if (startedFor !== session.user.id) { startedFor = session.user.id; await loadSharedData(); startApp(false); }
+  } else { showLogin(); showLinkError(); }
 }
 // Si el link del mail falló, Supabase vuelve con el motivo en la URL (#error_code=...). Se muestra en
 // el login (antes quedaba escondido) y se limpia la URL.

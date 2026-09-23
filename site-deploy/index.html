@@ -553,11 +553,6 @@
       <div class="topbar-inner">
         <div class="updated"><span class="dot-live"></span><span id="lastUpdated">—</span></div>
         <span id="dashControls" style="display:contents">
-          <div class="seg" id="platformSeg">
-            <button data-plat="todos" class="active"><span class="pdot all"></span>Todos</button>
-            <button data-plat="meta"><span class="pdot meta"></span>Meta</button>
-            <button data-plat="google"><span class="pdot google"></span>Google</button>
-          </div>
           <div class="dr-picker" id="mainPeriodPicker">
             <button type="button" class="select dr-trigger" id="mainPeriodBtn" title="Período">
               <svg class="dr-ico" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="14" height="12" rx="1.6"/><path d="M3 8h14M7 2.5v3M13 2.5v3"/></svg>
@@ -566,7 +561,6 @@
             </button>
             <div class="dr-pop" id="mainPeriodPop"></div>
           </div>
-          <select class="select" id="teamSel" title="Miembro del equipo"><option value="">Todo el equipo</option></select>
           <button class="btn" id="btnRefresh"><svg class="ico-sm ico-14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.2 10a6.2 6.2 0 1 1-1.8-4.36M16.2 3v3.8h-3.8"/></svg> Actualizar</button>
           <button class="btn btn-ghost" id="btnThresholds"><svg class="ico-sm ico-14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v14M6.2 6h7.6M3.3 6 1.7 9.7a1.9 1.9 0 0 0 3.8 0L4 6h-.7ZM16.7 6l-1.7 3.7a1.9 1.9 0 0 0 3.8 0L17 6h-.3Z"/></svg> Umbrales</button>
         </span>
@@ -599,7 +593,7 @@
       <div class="spacer"></div>
       <span class="result-count" id="resultCount"></span>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap scroll-tbl">
       <table id="clientsTable">
         <thead>
           <tr>
@@ -999,11 +993,11 @@ async function fetchTikTokClient(authToken, advertiserId, since, until, leads, p
   }).sort((a, b) => a.date < b.date ? -1 : 1);
   const prev = prevRows[0] ? parse(prevRows[0]) : null;
   const plays = n(tot.m.video_play_actions);
-  const campaigns = campRows.map(r => { const d = parse(r); return { name: d.m.campaign_name || r.dimensions.campaign_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr }; })
+  const campaigns = campRows.map(r => { const d = parse(r); return { name: d.m.campaign_name || r.dimensions.campaign_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks }; })
     .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
   const videos = adRows.map(r => {
     const d = parse(r), p = n(d.m.video_play_actions);
-    return { name: d.m.ad_name || r.dimensions.ad_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0 };
+    return { name: d.m.ad_name || r.dimensions.ad_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0 };
   }).filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend).slice(0, 10);
   return {
     raw: { spend: Math.round(tot.spend), roas: tot.roas, conv: tot.conv, impr: tot.impr, clicks: tot.clicks, trend: days.map(d => d.gasto) },
@@ -1053,7 +1047,7 @@ async function fetchPinterestClient(authToken, accountId, since, until, prevSinc
     return { date: r.DATE, gasto: Math.round(d.spend), conv: d.conv, cpa: d.conv > 0 ? Math.round(d.spend/d.conv) : 0, roas: d.roas, impr: d.impr, clicks: d.clicks, revenue: d.revenue, saves: d.saves, closeups: d.closeups };
   }).sort((a, b) => a.date < b.date ? -1 : 1);
   const prev = prevRows[0] ? parsePinterestRow(prevRows[0]) : null;
-  const campaigns = campRows.map(r => { const d = parsePinterestRow(r); return { name: r.CAMPAIGN_NAME || r.CAMPAIGN_ID, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr }; })
+  const campaigns = campRows.map(r => { const d = parsePinterestRow(r); return { name: r.CAMPAIGN_NAME || r.CAMPAIGN_ID, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks }; })
     .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
   const pins = pinRows.map(r => { const d = parsePinterestRow(r); return { name: r.AD_NAME || r.PIN_ID || r.AD_ID, impr: d.impr, saves: d.saves, closeups: d.closeups, clicks: d.clicks, ctr: d.ctr, spend: Math.round(d.spend), conv: d.conv }; })
     .filter(x => x.impr > 0).sort((a, b) => b.saves - a.saves);
@@ -1327,7 +1321,7 @@ function underThresholdCount(c) {
 const fmtMoney = n => (n == null) ? '—' : new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(n);
 const fmtInt   = n => (n == null) ? '—' : new Intl.NumberFormat('es-AR').format(n);
 const fmtRoas  = n => (n == null) ? '—' : n.toFixed(1) + 'x';
-const fmtPct   = n => (n == null) ? '—' : n.toFixed(1) + '%';
+const fmtPct   = (n, d=1) => (n == null) ? '—' : n.toFixed(d) + '%';
 const fmtCompactMoney = n => { if (n == null) return '—'; const sign = n<0?'-':'', abs = Math.abs(n); if (abs >= 1000000) return sign+'$'+(abs/1000000).toFixed(abs%1000000===0?0:1)+'M'; if (abs >= 1000) return sign+'$'+Math.round(abs/1000)+'k'; return sign+'$'+Math.round(abs); };
 const esc = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const initials = name => name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
@@ -2361,10 +2355,10 @@ function metricTableHTML(items, tableId, leads) {
     </tr></tfoot>
   </table></div>`;
 }
-function viewToggleLink(id) {
-  const mode = (state.chartViewMode && state.chartViewMode[id]) || 'chart';
+function viewToggleLink(id, defaultMode) {
+  const mode = (state.chartViewMode && state.chartViewMode[id]) || defaultMode || 'chart';
   const label = mode === 'chart' ? 'Ver tabla completa' : 'Ver gráfico';
-  return `<button class="btn-link-sm" data-toggle-view="${id}">${label}</button>`;
+  return `<button class="btn-link-sm" data-toggle-view="${id}" data-toggle-default="${defaultMode || 'chart'}">${label}</button>`;
 }
 function chartsSectionHTML(c) {
   const leads = isLeads(c);
@@ -2641,7 +2635,7 @@ function pinterestSectionHTML(c) {
     execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, sCtr, tP),
     execCard('CPC prom.', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', null, null),
     execCard('Guardados', fmtInt(saves), 'saves', 'green', L?dl(saves, P&&P.saves):null, sSaves, tI),
-    execCard('Tasa de guardado', fmtPct(saveRatePct), 'guardados / impresiones', '', null, null),
+    execCard('Tasa de guardado', fmtPct(saveRatePct, 2), 'guardados / impresiones', '', null, null),
     execCard('Conversiones', fmtInt(R.conv), '', 'green', L?dl(R.conv, P&&P.conv):null, sConv, tI),
     execCard('Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', 'costo por compra', 'amber', null, null),
     execCard('ROAS', m.roas!=null?fmtRoas(m.roas):'—', 'retorno', 'green', null, null)
@@ -2659,6 +2653,20 @@ function pinterestSectionHTML(c) {
   const pinCampMetricOpts = Object.entries(CAMP_METRICS).filter(([k]) => k !== 'ctr').map(([k,v]) => {
     const disabled = leadsP && (k === 'roas' || k === 'ventas');
     return `<option value="${k}" ${pinCampMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
+  }).join('');
+
+  if (!state.chartViewMode) state.chartViewMode = {};
+  const pinCampMode = state.chartViewMode.pinCamp || 'chart';
+  const pinsMode = state.chartViewMode.pins || 'table';
+  if (!state.pinChartMetric) state.pinChartMetric = 'roas';
+  let pinChartMetric = state.pinChartMetric;
+  if (leadsP && (pinChartMetric === 'roas' || pinChartMetric === 'ventas')) pinChartMetric = 'gasto';
+  const pvm = CAMP_METRICS[pinChartMetric];
+  const pinChartTarget = targetForMetric(pinChartMetric, t);
+  const pinsChart = verticalBarsHTML(pins, { value: CAMP_VALUE_FN[pinChartMetric], fmt: pvm.fmt, lowerIsBetter: pinChartMetric === 'cpa', target: pinChartTarget, status: statusFnForMetric(pinChartMetric, pinChartTarget), trend: it => synthTrend(`${c.metaId}|pinchart|${pinChartMetric}|${it.name}`, CAMP_VALUE_FN[pinChartMetric](it), 6), subtitle: it => `Guardados ${fmtInt(it.saves)} · CTR ${it.ctr!=null?fmtPct(it.ctr):'—'}` });
+  const pinChartMetricOpts = Object.entries(CAMP_METRICS).map(([k,v]) => {
+    const disabled = leadsP && (k === 'roas' || k === 'ventas');
+    return `<option value="${k}" ${pinChartMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
   }).join('');
 
   const objNames = ['Consideración','Conversiones','Catálogo','Reconocimiento'];
@@ -2684,16 +2692,28 @@ function pinterestSectionHTML(c) {
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
         <div class="chart-title">${pcm.label} por campaña</div>
-        <select class="select select-sm" id="pinCampMetricSel">${pinCampMetricOpts}</select>
+        <div class="chart-title-actions">
+          ${pinCampMode==='chart'?`<select class="select select-sm" id="pinCampMetricSel">${pinCampMetricOpts}</select>`:''}
+          ${viewToggleLink('pinCamp')}
+        </div>
       </div>
-      ${pinCampChart}
+      ${pinCampMode==='chart' ? pinCampChart : metricTableHTML(pinCampAgg, 'pinCampTable', leadsP)}
     </div>
     <div class="chart-grid-2">
       <div class="chart-box"><div class="chart-title">Mezcla por objetivo de campaña</div>${objDonut}</div>
       <div class="chart-box"><div class="chart-title">Dónde se muestran los Pines</div>${placeDonut}</div>
     </div>
-    <div class="exec-sub">Top Pines <span class="hint">— ${pins.length} pines, tocá una columna para ordenar</span></div>
-    ${topPinsTableHTML(pins)}`;
+    <div class="exec-sub">Top Pines <span class="hint">— ${pins.length} pines${pinsMode==='table'?', tocá una columna para ordenar':''}</span></div>
+    <div class="chart-box chart-box-wide">
+      <div class="chart-title-row">
+        <div class="chart-title">Top Pines</div>
+        <div class="chart-title-actions">
+          ${pinsMode==='chart'?`<select class="select select-sm" id="pinMetricSel">${pinChartMetricOpts}</select>`:''}
+          ${viewToggleLink('pins', 'table')}
+        </div>
+      </div>
+      ${pinsMode==='chart' ? pinsChart : topPinsTableHTML(pins)}
+    </div>`;
 }
 function topPinsTableHTML(pins) {
   if (!pins.length) return `<div class="empty-ok">Sin datos de pines para este período.</div>`;
@@ -2701,25 +2721,25 @@ function topPinsTableHTML(pins) {
   const sorted = sortRows(pins, state.pinSortKey, state.pinSortDir, ['name']);
   const rows = sorted.map(p => `<tr>
       <td>${esc(p.name)}</td>
-      <td class="right">${fmtInt(p.impr)}</td>
+      <td class="right col-impr">${fmtInt(p.impr)}</td>
       <td class="right">${fmtInt(p.saves)}</td>
       <td class="right">${fmtInt(p.closeups)}</td>
-      <td class="right">${fmtInt(p.clicks)}</td>
-      <td class="right">${fmtPct(p.ctr)}</td>
+      <td class="right col-clicks">${fmtInt(p.clicks)}</td>
+      <td class="right col-ctr">${fmtPct(p.ctr)}</td>
       <td class="right">${fmtMoney(p.spend)}</td>
-      <td class="right">${fmtInt(p.conv)}</td>
+      <td class="right col-conv">${fmtInt(p.conv)}</td>
     </tr>`).join('');
   const { pinSortKey: sk, pinSortDir: sd } = state;
   return `<div class="table-wrap scroll-tbl" style="margin-top:0"><table class="compact" id="pinTable">
     <thead><tr>
       ${sortTh('Pin','name','',sk,sd)}
-      ${sortTh('Impr.','impr','right',sk,sd)}
+      ${sortTh('Impr.','impr','right col-impr',sk,sd)}
       ${sortTh('Guardados','saves','right',sk,sd)}
       ${sortTh('Closeups','closeups','right',sk,sd)}
-      ${sortTh('Clics','clicks','right',sk,sd)}
-      ${sortTh('CTR','ctr','right',sk,sd)}
+      ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
+      ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
       ${sortTh('Costo','spend','right',sk,sd)}
-      ${sortTh('Conv.','conv','right',sk,sd)}
+      ${sortTh('Conv.','conv','right col-conv',sk,sd)}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -2835,6 +2855,10 @@ function tiktokSectionHTML(c) {
     return `<option value="${k}" ${ttVideoMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
   }).join('');
 
+  if (!state.chartViewMode) state.chartViewMode = {};
+  const ttCampMode = state.chartViewMode.ttCamp || 'chart';
+  const ttVideoMode = state.chartViewMode.ttVideo || 'chart';
+
   return `
     <div class="exec-sub">Resumen ejecutivo · Performance</div>
     <div class="exec-grid">${kpis}</div>
@@ -2850,17 +2874,23 @@ function tiktokSectionHTML(c) {
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
         <div class="chart-title">${tcm.label} por campaña</div>
-        <select class="select select-sm" id="ttCampMetricSel">${ttCampMetricOpts}</select>
+        <div class="chart-title-actions">
+          ${ttCampMode==='chart'?`<select class="select select-sm" id="ttCampMetricSel">${ttCampMetricOpts}</select>`:''}
+          ${viewToggleLink('ttCamp')}
+        </div>
       </div>
-      ${ttCampChart}
+      ${ttCampMode==='chart' ? ttCampChart : metricTableHTML(ttCampAgg, 'ttCampTable', leadsT)}
     </div>
     <div class="exec-sub">Top videos</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
         <div class="chart-title">${tvm.label} por video</div>
-        <select class="select select-sm" id="ttVideoMetricSel">${ttVideoMetricOpts}</select>
+        <div class="chart-title-actions">
+          ${ttVideoMode==='chart'?`<select class="select select-sm" id="ttVideoMetricSel">${ttVideoMetricOpts}</select>`:''}
+          ${viewToggleLink('ttVideo')}
+        </div>
       </div>
-      ${topVideosChart}
+      ${ttVideoMode==='chart' ? topVideosChart : metricTableHTML(videosAgg, 'ttVideoTable', leadsT)}
     </div>`;
 }
 
@@ -2957,6 +2987,7 @@ function renderCliente() {
     const pcms = document.getElementById('pinCampMetricSel'); if (pcms) pcms.addEventListener('change', e => { state.pinCampChartMetric = e.target.value; renderCliente(); });
     const tcms = document.getElementById('ttCampMetricSel'); if (tcms) tcms.addEventListener('change', e => { state.ttCampChartMetric = e.target.value; renderCliente(); });
     const tvms = document.getElementById('ttVideoMetricSel'); if (tvms) tvms.addEventListener('change', e => { state.ttVideoMetric = e.target.value; renderCliente(); });
+    const pms = document.getElementById('pinMetricSel'); if (pms) pms.addEventListener('change', e => { state.pinChartMetric = e.target.value; renderCliente(); });
     document.querySelectorAll('#kwTable thead th.sortable').forEach(th => th.addEventListener('click', () => {
       const key = th.dataset.sort;
       if (state.kwSortKey === key) state.kwSortDir = state.kwSortDir === 'asc' ? 'desc' : 'asc';
@@ -2978,10 +3009,11 @@ function renderCliente() {
     document.querySelectorAll('[data-toggle-view]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.toggleView;
       if (!state.chartViewMode) state.chartViewMode = {};
-      state.chartViewMode[id] = (state.chartViewMode[id] || 'chart') === 'chart' ? 'table' : 'chart';
+      const cur = state.chartViewMode[id] || b.dataset.toggleDefault || 'chart';
+      state.chartViewMode[id] = cur === 'chart' ? 'table' : 'chart';
       renderCliente();
     }));
-    ['campTable','adsetTable','adTable'].forEach(tid => {
+    ['campTable','adsetTable','adTable','ttCampTable','ttVideoTable','pinCampTable'].forEach(tid => {
       document.querySelectorAll(`#${tid} thead th.sortable`).forEach(th => th.addEventListener('click', () => {
         const key = th.dataset.sort;
         if (!state.tblSort) state.tblSort = {};
@@ -3120,14 +3152,10 @@ function renderCliente() {
 
 /* ===== render general ===== */
 function renderAll() { renderSummary(); renderAlertReasons(); renderTable(); renderUmbralesCliente(); }
-function populateTeamFilter() {
-  const members = new Set(); state.clients.forEach(c => { members.add(c.owner); c.coOwners.forEach(o => members.add(o)); });
-  document.getElementById('teamSel').innerHTML = '<option value="">Todo el equipo</option>' + [...members].sort().map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
-}
 function setLastUpdated() { state.lastUpdated = new Date(); document.getElementById('lastUpdated').textContent = 'Actualizado ' + state.lastUpdated.toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); }
 function loadData(showLoading) {
   if (showLoading) document.getElementById('tbody').innerHTML = Array.from({length:5}).map(() => `<tr><td colspan="11" style="padding:16px 14px"><div class="sk" style="width:${40+Math.random()*50}%"></div></td></tr>`).join('');
-  const run = async () => { state.clients = await buildClients(state.period); populateTeamFilter(); setLastUpdated(); renderAll(); if (state.view === 'cliente') renderCliente(); };
+  const run = async () => { state.clients = await buildClients(state.period); setLastUpdated(); renderAll(); if (state.view === 'cliente') renderCliente(); };
   setTimeout(run, showLoading ? 500 : 0);
 }
 
@@ -3142,7 +3170,6 @@ function closeThModal() { document.getElementById('thModal').classList.remove('s
 
 function wireEvents() {
   wirePeriodPicker('main');
-  document.getElementById('teamSel').addEventListener('change', e => { state.teamFilter = e.target.value; renderAlertReasons(); renderTable(); });
   document.getElementById('btnRefresh').addEventListener('click', () => { loadData(true); toast('Datos actualizados'); });
   document.getElementById('btnReconfig').addEventListener('click', showConfig);
   document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
@@ -3154,7 +3181,6 @@ function wireEvents() {
     badge.style.display = collapsed ? 'none' : (state.demo ? 'inline-block' : 'none');
   });
   document.getElementById('btnThresholds').addEventListener('click', openThModal);
-  document.querySelectorAll('#platformSeg button').forEach(b => b.addEventListener('click', () => { state.platform = b.dataset.plat; document.querySelectorAll('#platformSeg button').forEach(x => x.classList.toggle('active', x === b)); renderAll(); }));
   const jumpBtn = document.getElementById('jumpSelBtn');
   const jumpPop = document.getElementById('jumpSelPop');
   const jumpSearch = document.getElementById('jumpSelSearch');

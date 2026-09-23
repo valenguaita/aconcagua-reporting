@@ -1154,16 +1154,16 @@ function getActiveMetrics(c) {
   const p = c.platforms;
   if (state.platform === 'meta') return deriveMetrics(p.meta);
   if (state.platform === 'google') return deriveMetrics(p.google);
-  if (!p.meta && !p.google) return null;
-  return deriveMetrics(mergeRaw(p.meta, p.google));
+  if (!p.meta && !p.google && !p.pinterest && !p.tiktok) return null;
+  return deriveMetrics(mergeRaw(mergeRaw(p.meta, p.google), mergeRaw(p.pinterest, p.tiktok)));
 }
-function getCombined(c) { const p = c.platforms; if (!p.meta && !p.google) return null; return deriveMetrics(mergeRaw(p.meta, p.google)); }
+function getCombined(c) { const p = c.platforms; if (!p.meta && !p.google && !p.pinterest && !p.tiktok) return null; return deriveMetrics(mergeRaw(mergeRaw(p.meta, p.google), mergeRaw(p.pinterest, p.tiktok))); }
 function getActiveRaw(c) {
   const p = c.platforms;
   if (state.platform === 'meta') return p.meta;
   if (state.platform === 'google') return p.google;
-  if (!p.meta && !p.google) return null;
-  return mergeRaw(p.meta, p.google);
+  if (!p.meta && !p.google && !p.pinterest && !p.tiktok) return null;
+  return mergeRaw(mergeRaw(p.meta, p.google), mergeRaw(p.pinterest, p.tiktok));
 }
 function estimateFrequency(c, raw) {
   if (!raw || !raw.impr) return 0;
@@ -2725,24 +2725,24 @@ function topPinsTableHTML(pins) {
   const rows = sorted.map(p => `<tr>
       <td>${esc(p.name)}</td>
       <td class="right col-impr">${fmtInt(p.impr)}</td>
-      <td class="right col-roas">${fmtInt(p.saves)}</td>
-      <td class="right">${fmtInt(p.closeups)}</td>
       <td class="right col-clicks">${fmtInt(p.clicks)}</td>
       <td class="right col-ctr">${fmtPct(p.ctr)}</td>
       <td class="right">${fmtMoney(p.spend)}</td>
       <td class="right col-conv">${fmtInt(p.conv)}</td>
+      <td class="right col-roas">${fmtInt(p.saves)}</td>
+      <td class="right">${fmtInt(p.closeups)}</td>
     </tr>`).join('');
   const { pinSortKey: sk, pinSortDir: sd } = state;
   return `<div class="table-wrap scroll-tbl" style="margin-top:0"><table class="compact" id="pinTable">
     <thead><tr>
       ${sortTh('Pin','name','',sk,sd)}
       ${sortTh('Impr.','impr','right col-impr',sk,sd)}
-      ${sortTh('Guardados','saves','right col-roas',sk,sd)}
-      ${sortTh('Closeups','closeups','right',sk,sd)}
       ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
       ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
       ${sortTh('Costo','spend','right',sk,sd)}
       ${sortTh('Conv.','conv','right col-conv',sk,sd)}
+      ${sortTh('Guardados','saves','right col-roas',sk,sd)}
+      ${sortTh('Closeups','closeups','right',sk,sd)}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;

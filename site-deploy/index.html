@@ -119,11 +119,14 @@
   .demo-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--yellow); background: var(--yellow-bg); padding: 3px 8px; border-radius: 20px; align-self: flex-start; }
 
   .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .container { max-width: 1500px; margin: 0 auto; padding: 0 24px 56px; width: 100%; }
+  .container { max-width: 1500px; margin: 0 auto; padding: 0 24px 56px; width: 100%; transition: opacity .15s ease; }
+  .container.is-loading { opacity: .45; pointer-events: none; }
   header.topbar { background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
   .topbar-inner { padding: 14px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .updated { font-size: 12px; color: var(--text-faint); display: flex; align-items: center; gap: 6px; }
   .dot-live { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(0,234,189,.18); }
+  .dot-live.loading { background: var(--yellow); box-shadow: 0 0 0 3px rgba(242,180,65,.18); animation: dotPulse 1s ease-in-out infinite; }
+  @keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
   .section-title { font-size: 12px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .8px; margin: 30px 2px 12px; display: flex; align-items: center; gap: 10px; }
   .section-title .hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); font-size: 12px; }
@@ -3154,8 +3157,20 @@ function renderCliente() {
 function renderAll() { renderSummary(); renderAlertReasons(); renderTable(); renderUmbralesCliente(); }
 function setLastUpdated() { state.lastUpdated = new Date(); document.getElementById('lastUpdated').textContent = 'Actualizado ' + state.lastUpdated.toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); }
 function loadData(showLoading) {
-  if (showLoading) document.getElementById('tbody').innerHTML = Array.from({length:5}).map(() => `<tr><td colspan="11" style="padding:16px 14px"><div class="sk" style="width:${40+Math.random()*50}%"></div></td></tr>`).join('');
-  const run = async () => { state.clients = await buildClients(state.period); setLastUpdated(); renderAll(); if (state.view === 'cliente') renderCliente(); };
+  if (showLoading) {
+    document.getElementById('tbody').innerHTML = Array.from({length:5}).map(() => `<tr><td colspan="11" style="padding:16px 14px"><div class="sk" style="width:${40+Math.random()*50}%"></div></td></tr>`).join('');
+    document.querySelector('.container').classList.add('is-loading');
+    document.querySelector('.dot-live').classList.add('loading');
+    document.getElementById('lastUpdated').textContent = 'Actualizando datos…';
+  }
+  const run = async () => {
+    state.clients = await buildClients(state.period);
+    setLastUpdated();
+    renderAll();
+    if (state.view === 'cliente') renderCliente();
+    document.querySelector('.container').classList.remove('is-loading');
+    document.querySelector('.dot-live').classList.remove('loading');
+  };
   setTimeout(run, showLoading ? 500 : 0);
 }
 

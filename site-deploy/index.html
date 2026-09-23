@@ -2725,7 +2725,7 @@ function topPinsTableHTML(pins) {
   const rows = sorted.map(p => `<tr>
       <td>${esc(p.name)}</td>
       <td class="right col-impr">${fmtInt(p.impr)}</td>
-      <td class="right">${fmtInt(p.saves)}</td>
+      <td class="right col-roas">${fmtInt(p.saves)}</td>
       <td class="right">${fmtInt(p.closeups)}</td>
       <td class="right col-clicks">${fmtInt(p.clicks)}</td>
       <td class="right col-ctr">${fmtPct(p.ctr)}</td>
@@ -2737,7 +2737,7 @@ function topPinsTableHTML(pins) {
     <thead><tr>
       ${sortTh('Pin','name','',sk,sd)}
       ${sortTh('Impr.','impr','right col-impr',sk,sd)}
-      ${sortTh('Guardados','saves','right',sk,sd)}
+      ${sortTh('Guardados','saves','right col-roas',sk,sd)}
       ${sortTh('Closeups','closeups','right',sk,sd)}
       ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
       ${sortTh('CTR','ctr','right col-ctr',sk,sd)}

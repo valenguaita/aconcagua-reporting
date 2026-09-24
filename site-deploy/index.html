@@ -1537,9 +1537,15 @@ function getProcessedClients() {
   return list;
 }
 /* ===== columnas redimensionables con el mouse (todas las tablas; el ancho se recuerda por tabla) ===== */
-const LS_COLW = 'aconcagua_colw';
-const loadColW = () => { try { return JSON.parse(localStorage.getItem(LS_COLW) || '{}'); } catch (e) { return {}; } };
-const saveColW = (id, ws) => { try { const all = loadColW(); if (ws) all[id] = ws; else delete all[id]; localStorage.setItem(LS_COLW, JSON.stringify(all)); } catch (e) {} };
+// El ancho vive solo en memoria y es propio de cada tabla de cada cliente/plataforma (no se comparte
+// ni se guarda): se pierde al entrar o salir de la vista o al cambiar de cliente o plataforma.
+try { localStorage.removeItem('aconcagua_colw'); } catch (e) {}
+const colKey = table => (table.id === 'clientsTable' ? 'cartera' : state.modeKey) + '|' + table.id;
+function clearColWidths() {
+  state.colW = {};
+  const t = document.getElementById('clientsTable');
+  if (t) { t.classList.remove('rz'); t.style.width = ''; t.querySelectorAll('thead th').forEach(th => { th.style.width = ''; }); }
+}
 let rzJust = false;
 // Al soltar el mouse después de arrastrar, el navegador dispara un "click" sobre el encabezado y ordenaría la tabla: se descarta.
 document.addEventListener('click', e => { if (rzJust) { e.stopPropagation(); e.preventDefault(); } }, true);
@@ -1551,14 +1557,16 @@ function setColW(table, ws) {
 function resetColW(table) {
   table.classList.remove('rz'); table.style.width = '';
   table.querySelectorAll('thead th').forEach(th => { th.style.width = ''; });
-  if (table.id) saveColW(table.id, null);
+  if (state.colW) delete state.colW[colKey(table)];
 }
 function wireResizableTables() {
-  const saved = loadColW();
+  if (!state.colW) state.colW = {};
+  const saved = state.colW;
   document.querySelectorAll('#viewCliente table, #clientsTable').forEach(table => {
     const ths = [...table.querySelectorAll('thead th')];
     if (!ths.length) return;
-    if (table.id && saved[table.id] && saved[table.id].length === ths.length && !table.classList.contains('rz')) setColW(table, saved[table.id]);
+    const sv = table.id && saved[colKey(table)];
+    if (sv && sv.length === ths.length && !table.classList.contains('rz')) setColW(table, sv);
     ths.forEach((th, i) => {
       if (th.querySelector('.col-rz')) return;
       const h = document.createElement('span'); h.className = 'col-rz';
@@ -1575,7 +1583,7 @@ function wireResizableTables() {
         const up = () => {
           document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
           document.body.classList.remove('rz-drag');
-          if (table.id) saveColW(table.id, ws);
+          if (table.id) state.colW[colKey(table)] = ws;
           rzJust = true; setTimeout(() => { rzJust = false; }, 0);
         };
         document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
@@ -1780,6 +1788,8 @@ function wireUmbralesForm() {
 function teamMembers() { const s = new Set(); state.clients.forEach(c => { s.add(c.owner); c.coOwners.forEach(o => s.add(o)); }); return [...s].sort(); }
 
 function switchView(v) {
+  // Entrar o salir de una vista deja las tablas en su ancho normal (y los modos tabla/gráfico de nuevo en tabla).
+  clearColWidths(); state.modeKey = null;
   state.view = v;
   document.querySelectorAll('#topnav button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   document.getElementById('viewDashboard').style.display = v === 'dashboard' ? 'block' : 'none';
@@ -3133,7 +3143,7 @@ function renderCliente() {
   }
   // Cada vez que se entra a otro cliente o plataforma, las tablas arrancan en modo tabla y sin filtros abiertos.
   const modeKey = state.cliClient + '|' + state.cliView;
-  if (state.modeKey !== modeKey) { state.modeKey = modeKey; state.chartViewMode = {}; state.hierOpen = null; state.hierSearch = {}; }
+  if (state.modeKey !== modeKey) { state.modeKey = modeKey; state.chartViewMode = {}; state.hierOpen = null; state.hierSearch = {}; state.colW = {}; }
   const objToggle = `<div class="seg" id="cliObjSeg">
       <button data-obj="ventas" class="${state.cliObjetivo!=='leads'?'active':''}">Ventas</button>
       <button data-obj="leads" class="${state.cliObjetivo==='leads'?'active':''}">Leads</button>

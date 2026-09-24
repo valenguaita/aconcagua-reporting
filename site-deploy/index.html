@@ -263,10 +263,12 @@
   .trend { display: flex; align-items: center; gap: 8px; }
   .trend .pct { font-size: 12px; font-weight: 600; }
   .trend.up .pct { color: var(--green); } .trend.down .pct { color: var(--red); } .trend.flat .pct { color: var(--text-faint); }
-  .plats { display: flex; gap: 4px; }
+  .plats { display: flex; gap: 4px; flex-wrap: wrap; }
   .plat { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; }
   .plat .pdot { width: 6px; height: 6px; }
   .plat.meta { background: var(--meta-bg); color: #9CC0FF; } .plat.google { background: var(--google-bg); color: #F4C078; }
+  .pdot.pinterest { background: #E60023; } .pdot.tiktok { background: #25F4EE; }
+  .plat.pinterest { background: rgba(230,0,35,.16); color: #FF8A96; } .plat.tiktok { background: rgba(37,244,238,.13); color: #7DEDEA; }
   .plat.dim { opacity: .3; }
   .muted-dash { color: var(--text-faint); }
 
@@ -330,6 +332,23 @@
   .cli-combo-item:hover { background: var(--surface-2); }
   .cli-combo-item.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .cli-combo-empty { padding: 10px; font-size: 12.5px; color: var(--text-faint); text-align: center; }
+  .hier-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+  .hf-label { font-size: 12px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .6px; }
+  .hf-btn { min-height: 32px; padding: 4px 10px; font-size: 12.5px; max-width: 280px; }
+  .hf-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hf-pop { width: 340px; }
+  .hf-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .hf-item input { accent-color: var(--accent); flex: none; }
+  .hf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hf-sub { margin-left: auto; padding-left: 8px; font-size: 11px; color: var(--text-faint); white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+  .hf-note { font-size: 12px; color: var(--text-faint); }
+  table.rz { table-layout: fixed; min-width: 0; }
+  table.rz th, table.rz td { overflow: hidden; text-overflow: ellipsis; }
+  table.rz th.mtbl-name, table.rz td.mtbl-name { max-width: none; }
+  .col-rz { position: absolute; top: 0; right: 0; bottom: 0; width: 9px; cursor: col-resize; user-select: none; z-index: 3; }
+  .col-rz::after { content: ''; position: absolute; right: 0; top: 25%; bottom: 25%; width: 1px; background: var(--border-strong); }
+  .col-rz:hover::after, body.rz-drag .col-rz::after { background: var(--accent); width: 2px; top: 15%; bottom: 15%; }
+  body.rz-drag { cursor: col-resize; user-select: none; }
   .cli-note { font-size: 12px; color: var(--text-faint); margin: 0 0 4px; }
   .exec-sub { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-faint); margin: 28px 2px 12px; display: flex; align-items: center; gap: 6px; }
   .exec-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
@@ -879,36 +898,40 @@ async function fetchMetaHierarchy(authToken, accountId, since, until) {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
   if (json.error) { throw new Error(json.error); }
-  const rows = json.data || [];
-
-  function buildLevel(idKey, nameKey) {
-    const groups = {};
-    rows.forEach(r => {
-      const id = r[idKey]; if (!id) return;
-      if (!groups[id]) groups[id] = { name: r[nameKey] || id, spend: 0, conv: 0, revenueNum: 0, impr: 0, clicks: 0 };
-      const g = groups[id];
-      g.spend += +r.spend || 0;
-      g.conv += metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY);
-      g.revenueNum += metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY);
-      g.impr += +r.impressions || 0;
-      g.clicks += +r.clicks || 0;
-    });
-    return Object.values(groups).map(g => ({
-      name: g.name,
-      spend: Math.round(g.spend),
-      conv: Math.round(g.conv),
-      impr: Math.round(g.impr),
-      clicks: Math.round(g.clicks),
-      roas: g.spend > 0 ? +(g.revenueNum/g.spend).toFixed(2) : null,
-      ctr: g.impr > 0 ? +(g.clicks/g.impr*100).toFixed(2) : null
-    })).sort((a,b) => b.spend - a.spend);
-  }
-
+  // Se guardan las filas a nivel anuncio con su campaña y grupo: las tres tablas se agregan
+  // a partir de acá (metaHierAgg), así el filtro de campaña/grupo aplica a todas por igual.
   return {
-    campaigns: buildLevel('campaign_id', 'campaign_name'),
-    adsets: buildLevel('adset_id', 'adset_name'),
-    ads: buildLevel('ad_id', 'ad_name')
+    rows: (json.data || []).filter(r => r.ad_id).map(r => ({
+      campId: r.campaign_id, campName: r.campaign_name || r.campaign_id,
+      setId: r.adset_id, setName: r.adset_name || r.adset_id,
+      adId: r.ad_id, adName: r.ad_name || r.ad_id,
+      spend: +r.spend || 0,
+      conv: metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY),
+      revenue: metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY),
+      impr: +r.impressions || 0, clicks: +r.clicks || 0
+    }))
   };
+}
+// Filtro campaña/grupo del Dashboard Cliente (Meta). Se reinicia al cambiar de cliente.
+function hierFilterFor(c) {
+  if (!state.hierFilter || state.hierFilter.clientId !== c.metaId) state.hierFilter = { clientId: c.metaId, camps: [], sets: [] };
+  return state.hierFilter;
+}
+function metaHierAgg(c, level) {
+  const f = hierFilterFor(c), groups = {};
+  c.metaLiveHierarchy.rows.forEach(r => {
+    if (f.camps.length && !f.camps.includes(r.campId)) return;
+    if (f.sets.length && !f.sets.includes(r.setId)) return;
+    const id = level === 'campaign' ? r.campId : level === 'adset' ? r.setId : r.adId;
+    const g = groups[id] || (groups[id] = { name: level === 'campaign' ? r.campName : level === 'adset' ? r.setName : r.adName, campaña: r.campName, grupo: r.setName, spend: 0, conv: 0, revenue: 0, impr: 0, clicks: 0 });
+    g.spend += r.spend; g.conv += r.conv; g.revenue += r.revenue; g.impr += r.impr; g.clicks += r.clicks;
+  });
+  return Object.values(groups).map(g => ({
+    name: g.name, campaña: g.campaña, grupo: g.grupo,
+    spend: Math.round(g.spend), conv: Math.round(g.conv), impr: Math.round(g.impr), clicks: Math.round(g.clicks),
+    roas: g.spend > 0 ? +(g.revenue/g.spend).toFixed(2) : null,
+    ctr: g.impr > 0 ? +(g.clicks/g.impr*100).toFixed(2) : null
+  })).sort((a, b) => b.spend - a.spend);
 }
 async function fetchMetaInsightsDaily(authToken, accountId, since, until) {
   const url = `/api/meta-daily?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
@@ -1170,7 +1193,7 @@ function estimateFrequency(c, raw) {
   const audienceSeed = 600000 + (hashStr(c.metaId + 'aud') % 1500000);
   return +(raw.impr / audienceSeed).toFixed(1);
 }
-function platformsOf(c) { const out = []; if (c.platforms.meta && c.platforms.meta.spend > 0) out.push('meta'); if (c.platforms.google && c.platforms.google.spend > 0) out.push('google'); return out; }
+function platformsOf(c) { return ['meta', 'google', 'pinterest', 'tiktok'].filter(k => c.platforms[k] && c.platforms[k].spend > 0); }
 
 /* ===== jerarquía campañas (mock determinístico) ===== */
 const CAMP_NAMES = ['Prospecting — Conversiones', 'Retargeting — Carrito', 'Branding — Awareness'];
@@ -1280,29 +1303,36 @@ function classifyHealth(c, m) {
   st.push(cpaStatus(m.cpa, t.cpa)); st.push(ctrStatus(m.ctr, t.ctr));
   if (st.includes('bad')) return 'red'; if (st.includes('warn')) return 'yellow'; return 'green';
 }
+const ALERT_PLATFORMS = [['meta','Meta'], ['google','Google'], ['pinterest','Pinterest'], ['tiktok','TikTok']];
 function computeAlerts(c) {
   if (c.status !== 'Activo') return [];
-  const m = getActiveMetrics(c), comb = getCombined(c), t = effThresholds(c), alerts = [];
-  if (!m || m.spend === 0) { alerts.push({ sev:'red', cond:'Sin gasto', rec:'Sin gasto detectado. Verificar que las campañas estén activas y sin errores.' }); }
-  else {
+  const comb = getCombined(c), t = effThresholds(c), alerts = [];
+  // Solo se evalúan las plataformas que el cliente tiene conectadas (datos presentes).
+  const connected = ALERT_PLATFORMS.filter(([k]) => c.platforms[k]);
+  if (connected.length === 0) {
+    alerts.push({ sev:'red', cond:'Sin gasto', rec:'Sin gasto detectado. Verificar que las campañas estén activas y sin errores.' });
+  }
+  connected.forEach(([k, label]) => {
+    const raw = c.platforms[k], m = deriveMetrics(raw);
+    if (raw.spend === 0) { alerts.push({ sev:'red', cond:'Sin gasto', plat:label, rec:'Sin gasto detectado. Verificar que las campañas estén activas y sin errores.' }); return; }
     const roasLow = !isLeads(c) && t.roas > 0 && m.roas != null && m.roas < 0.8*t.roas;
     const ctrLow  = m.ctr != null && m.ctr < t.ctr;
     const cpaHigh = t.cpa > 0 && m.cpa != null && m.cpa > 1.4*t.cpa;
-    if (roasLow && ctrLow) alerts.push({ sev:'red', cond:'ROAS + CTR bajos', rec:'Performance general baja. Recomendamos revisión completa de la cuenta.' });
-    else { if (roasLow) alerts.push({ sev:'red', cond:'ROAS bajo', rec:'Revisar segmentación y creatividades. Considerar pausar ad sets con CPA más alto.' });
-           if (ctrLow)  alerts.push({ sev:'yellow', cond:'CTR bajo', rec:'CTR bajo. Rotar creatividades y probar nuevos formatos.' }); }
-    if (cpaHigh) alerts.push({ sev:'red', cond:'CPA elevado', rec:'CPA elevado. Revisar embudo de conversión y calidad del tráfico.' });
-
-    const raw = getActiveRaw(c);
-    if (raw && raw.clicks >= 15 && (m.conversiones || 0) === 0) {
-      alerts.push({ sev:'red', cond:'Posible píxel roto', rec:'Hay clics entrando pero cero conversiones registradas. Verificar el píxel/Conversions API y los eventos de conversión.' });
+    if (roasLow && ctrLow) alerts.push({ sev:'red', cond:'ROAS + CTR bajos', plat:label, rec:'Performance general baja. Recomendamos revisión completa de la cuenta.' });
+    else { if (roasLow) alerts.push({ sev:'red', cond:'ROAS bajo', plat:label, rec:'Revisar segmentación y creatividades. Considerar pausar ad sets con CPA más alto.' });
+           if (ctrLow)  alerts.push({ sev:'yellow', cond:'CTR bajo', plat:label, rec:'CTR bajo. Rotar creatividades y probar nuevos formatos.' }); }
+    if (cpaHigh) alerts.push({ sev:'red', cond:'CPA elevado', plat:label, rec:'CPA elevado. Revisar embudo de conversión y calidad del tráfico.' });
+    if (raw.clicks >= 15 && (m.conversiones || 0) === 0) {
+      alerts.push({ sev:'red', cond:'Posible píxel roto', plat:label, rec:'Hay clics entrando pero cero conversiones registradas. Verificar el píxel/Conversions API y los eventos de conversión.' });
     }
-    const ctrTrend = c.weekly && c.weekly.ctr ? seriesDelta(c.weekly.ctr) : null;
-    const freqEst = estimateFrequency(c, raw);
-    if (ctrTrend != null && ctrTrend <= -12 && freqEst >= 2.5) {
-      alerts.push({ sev:'yellow', cond:'Fatiga de creatividad', rec:`Frecuencia estimada ${freqEst}x y CTR cayendo ${Math.abs(ctrTrend)}% en las últimas semanas. Rotar creatividades o ampliar audiencia.` });
+    if (k === 'meta') {
+      const ctrTrend = c.weekly && c.weekly.ctr ? seriesDelta(c.weekly.ctr) : null;
+      const freqEst = estimateFrequency(c, raw);
+      if (ctrTrend != null && ctrTrend <= -12 && freqEst >= 2.5) {
+        alerts.push({ sev:'yellow', cond:'Fatiga de creatividad', plat:label, rec:`Frecuencia estimada ${freqEst}x y CTR cayendo ${Math.abs(ctrTrend)}% en las últimas semanas. Rotar creatividades o ampliar audiencia.` });
+      }
     }
-  }
+  });
   if (state.period === 'this_month' && comb && comb.spend > 0) {
     const day = new Date().getDate();
     if (t.budget > 0 && day > 15 && comb.spend < (t.pacing/100)*t.budget)
@@ -1374,7 +1404,7 @@ function renderAlertReasons() {
   if (withAlerts.length === 0) { host.innerHTML = `<div class="reasons"><div class="empty-ok">Ningún cliente en alerta en la vista ${platLabel()}.</div></div>`; return; }
   host.innerHTML = `<div class="reasons">` + withAlerts.map(({c, alerts}) => {
     const sev = alerts.some(a => a.sev === 'red') ? 'red' : 'yellow';
-    const conds = alerts.map(a => `<span class="cond-tag ${a.sev==='yellow'?'warn':''}">${esc(a.cond)}</span>`).join('');
+    const conds = alerts.map(a => `<span class="cond-tag ${a.sev==='yellow'?'warn':''}">${esc(a.cond)}${a.plat ? ` · ${esc(a.plat)}` : ''}</span>`).join('');
     return `<div class="reasons-row"><span class="rsev ${sev}"></span><span class="rname">${esc(c.nombre)} <span class="rcat">· Cat ${c.categoria} · ${esc(c.owner)}</span></span><span class="conds">${conds}</span></div>`;
   }).join('') + `</div>`;
 }
@@ -1398,6 +1428,39 @@ function sparkline(arr, w=70, h=24, dirOverride, fixedColor, tip) {
   const col = fixedColor || ((dirOverride != null ? dirOverride >= 0 : vals[vals.length-1] >= vals[0]) ? 'var(--green)' : 'var(--red)');
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"${tip ? ` data-sp="${spData}"` : ''}>${tip ? `<rect width="${w}" height="${h}" fill="transparent"/>` : ''}<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>${tip ? `<circle class="sp-dot" r="3" fill="${col}" style="display:none"/>` : ''}</svg>`;
 }
+// Total combinado (Meta + TikTok + Pinterest con datos reales): días, total del período y del anterior.
+function combinedLive(c) {
+  const parts = [];
+  const mr = c.platforms.meta;
+  if (c.metaLive && c.metaLiveDays && mr) {
+    parts.push({
+      days: c.metaLiveDays.map(d => ({ date: d.date, gasto: d.gasto, conv: d.conv, revenue: d.roas != null ? d.gasto*d.roas : 0 })),
+      cur: { spend: mr.spend, revenue: mr.roas != null ? mr.spend*mr.roas : 0, conv: mr.conv },
+      prev: mr.prevSpend != null ? { spend: mr.prevSpend, revenue: mr.prevRevenue || 0, conv: mr.prevConv || 0 } : null
+    });
+  }
+  [['tiktok', c.tiktokLive], ['pinterest', c.pinterestLive]].forEach(([k, L]) => {
+    const r = c.platforms[k];
+    if (!L || !r) return;
+    parts.push({
+      days: L.days.map(d => ({ date: d.date, gasto: d.gasto, conv: d.conv, revenue: d.revenue || 0 })),
+      cur: { spend: r.spend, revenue: L.revenue, conv: r.conv },
+      prev: L.prev ? { spend: L.prev.spend, revenue: L.prev.revenue, conv: L.prev.conv } : null
+    });
+  });
+  if (!parts.length) return null;
+  const byDate = {};
+  parts.forEach(p => p.days.forEach(d => {
+    const x = byDate[d.date] || (byDate[d.date] = { date: d.date, gasto: 0, conv: 0, revenue: 0 });
+    x.gasto += d.gasto; x.conv += d.conv; x.revenue += d.revenue;
+  }));
+  const sum = list => list.reduce((a, t) => ({ spend: a.spend + t.spend, revenue: a.revenue + t.revenue, conv: a.conv + t.conv }), { spend: 0, revenue: 0, conv: 0 });
+  return {
+    days: Object.values(byDate).sort((a, b) => a.date < b.date ? -1 : 1),
+    cur: sum(parts.map(p => p.cur)),
+    prev: parts.every(p => p.prev) ? sum(parts.map(p => p.prev)) : null
+  };
+}
 function trendCell(c, m) {
   if (!m || m.spend === 0) return '<span class="muted-dash">—</span>';
   // Acá no interesa "cuánto se gastó" (más gasto no es ni bueno ni malo) sino si la cuenta va
@@ -1408,9 +1471,19 @@ function trendCell(c, m) {
   const w = c.weekly;
   // Línea: evolución diaria real del período (sin el día de hoy, que está incompleto), con tooltip.
   const liveSeries = (metaLiveOk && c.metaLiveDays) ? sparkDays(c.metaLiveDays) : null;
-  const tip = liveSeries && { labels: liveSeries.map(d => d.date), fmt: leads ? fmtMoney : fmtRoas };
+  let tip = liveSeries && { labels: liveSeries.map(d => d.date), fmt: leads ? fmtMoney : fmtRoas };
   let value, deltaPct, spark;
-  if (leads) {
+  // Si el cliente tiene datos reales en alguna plataforma, la tendencia es la del TOTAL combinado
+  // (suma de las plataformas conectadas), igual que los números de la fila.
+  const cl = combinedLive(c);
+  const kpi = t => leads ? (t.conv > 0 ? t.spend/t.conv : null) : (t.spend > 0 ? t.revenue/t.spend : null);
+  if (cl) {
+    value = kpi(cl.cur);
+    deltaPct = cl.prev ? pctDelta(value, kpi(cl.prev)) : null;
+    const ds = sparkDays(cl.days);
+    spark = ds.map(d => kpi({ spend: d.gasto, revenue: d.revenue, conv: d.conv }));
+    tip = { labels: ds.map(d => d.date), fmt: leads ? fmtMoney : fmtRoas };
+  } else if (leads) {
     value = m.cpa;
     if (metaLiveOk && c.platforms.meta.cpaD != null) {
       deltaPct = c.platforms.meta.cpaD;
@@ -1449,7 +1522,7 @@ function platsCell(c) {
   const active = platformsOf(c);
   if (active.length === 0) return '<span class="muted-dash">—</span>';
   const show = (key, label) => { if (!active.includes(key)) return ''; const dim = (state.platform !== 'todos' && state.platform !== key) ? 'dim' : ''; return `<span class="plat ${key} ${dim}"><span class="pdot ${key}"></span>${label}</span>`; };
-  return `<div class="plats">${show('meta','Meta')}${show('google','Google')}</div>`;
+  return `<div class="plats">${show('meta','Meta')}${show('google','Google')}${show('pinterest','Pinterest')}${show('tiktok','TikTok')}</div>`;
 }
 function getProcessedClients() {
   let list = state.clients.slice();
@@ -1462,6 +1535,54 @@ function getProcessedClients() {
   const val = (c, k) => { if (k==='nombre') return c.nombre.toLowerCase(); if (k==='categoria') return c.categoria; if (k==='status') return c.status; const m = getActiveMetrics(c); return m ? m[k] : null; };
   list.sort((a,b) => { const va = val(a,state.sortKey), vb = val(b,state.sortKey); if (va==null&&vb==null) return 0; if (va==null) return 1; if (vb==null) return -1; if (va<vb) return -1*dir; if (va>vb) return 1*dir; return 0; });
   return list;
+}
+/* ===== columnas redimensionables con el mouse (todas las tablas; el ancho se recuerda por tabla) ===== */
+const LS_COLW = 'aconcagua_colw';
+const loadColW = () => { try { return JSON.parse(localStorage.getItem(LS_COLW) || '{}'); } catch (e) { return {}; } };
+const saveColW = (id, ws) => { try { const all = loadColW(); if (ws) all[id] = ws; else delete all[id]; localStorage.setItem(LS_COLW, JSON.stringify(all)); } catch (e) {} };
+let rzJust = false;
+// Al soltar el mouse después de arrastrar, el navegador dispara un "click" sobre el encabezado y ordenaría la tabla: se descarta.
+document.addEventListener('click', e => { if (rzJust) { e.stopPropagation(); e.preventDefault(); } }, true);
+function setColW(table, ws) {
+  table.classList.add('rz');
+  table.querySelectorAll('thead th').forEach((th, i) => { if (ws[i] != null) th.style.width = ws[i] + 'px'; });
+  table.style.width = ws.reduce((a, b) => a + b, 0) + 'px';
+}
+function resetColW(table) {
+  table.classList.remove('rz'); table.style.width = '';
+  table.querySelectorAll('thead th').forEach(th => { th.style.width = ''; });
+  if (table.id) saveColW(table.id, null);
+}
+function wireResizableTables() {
+  const saved = loadColW();
+  document.querySelectorAll('#viewCliente table, #clientsTable').forEach(table => {
+    const ths = [...table.querySelectorAll('thead th')];
+    if (!ths.length) return;
+    if (table.id && saved[table.id] && saved[table.id].length === ths.length && !table.classList.contains('rz')) setColW(table, saved[table.id]);
+    ths.forEach((th, i) => {
+      if (th.querySelector('.col-rz')) return;
+      const h = document.createElement('span'); h.className = 'col-rz';
+      h.addEventListener('click', e => e.stopPropagation());
+      h.addEventListener('dblclick', e => { e.stopPropagation(); resetColW(table); });
+      h.addEventListener('mousedown', e => {
+        e.preventDefault(); e.stopPropagation();
+        const cur = [...table.querySelectorAll('thead th')];
+        const ws = cur.map(t => Math.round(t.getBoundingClientRect().width));
+        setColW(table, ws);
+        const startX = e.clientX, startW = ws[i];
+        document.body.classList.add('rz-drag');
+        const move = ev => { ws[i] = Math.max(48, startW + ev.clientX - startX); setColW(table, ws); };
+        const up = () => {
+          document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+          document.body.classList.remove('rz-drag');
+          if (table.id) saveColW(table.id, ws);
+          rzJust = true; setTimeout(() => { rzJust = false; }, 0);
+        };
+        document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+      });
+      th.appendChild(h);
+    });
+  });
 }
 function renderTable() {
   const list = getProcessedClients(), tbody = document.getElementById('tbody');
@@ -1489,6 +1610,7 @@ function renderTable() {
   }).join('');
   tbody.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => selectClientForBoard(tr.dataset.id)));
   updateSortHeaders();
+  wireResizableTables();
 }
 function updateSortHeaders() {
   document.querySelectorAll('#clientsTable thead th.sortable').forEach(th => { const caret = th.querySelector('.caret'); if (th.dataset.sort === state.sortKey) { th.classList.add('sorted'); caret.textContent = state.sortDir==='asc'?'↑':'↓'; } else { th.classList.remove('sorted'); caret.textContent = '↕'; } });
@@ -1992,9 +2114,9 @@ function groupAgg(items, keyFn) {
     ctr: g.impr>0 ? +(g.clicks/g.impr*100).toFixed(2) : null
   })).sort((a,b) => b.spend-a.spend);
 }
-function campaignTypeAgg(c) { if (c.metaLiveHierarchy) return c.metaLiveHierarchy.campaigns; return groupAgg(clientCampaignsMeta(c), cm => cm.name.split('—')[0].trim()); }
-function adsetTypeAgg(c) { if (c.metaLiveHierarchy) return c.metaLiveHierarchy.adsets; return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets), a => a.name); }
-function adTypeAgg(c) { if (c.metaLiveHierarchy) return c.metaLiveHierarchy.ads; return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets).flatMap(a => a.ads), d => d.name.replace(/\s*\d+$/, '')); }
+function campaignTypeAgg(c) { if (c.metaLiveHierarchy) return metaHierAgg(c, 'campaign'); return groupAgg(clientCampaignsMeta(c), cm => cm.name.split('—')[0].trim()); }
+function adsetTypeAgg(c) { if (c.metaLiveHierarchy) return metaHierAgg(c, 'adset'); return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets), a => a.name); }
+function adTypeAgg(c) { if (c.metaLiveHierarchy) return metaHierAgg(c, 'ad'); return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets).flatMap(a => a.ads), d => d.name.replace(/\s*\d+$/, '')); }
 function synthTrend(seedKey, current, points) {
   if (current == null) return null;
   const seed = hashStr(seedKey);
@@ -2310,15 +2432,17 @@ function statusFnForMetric(metric, target) {
   if (metric === 'ctr') return it => ctrStatus(CAMP_VALUE_FN.ctr(it), target);
   return null;
 }
-function metricTableHTML(items, tableId, leads) {
+function metricTableHTML(items, tableId, leads, extraCols) {
+  extraCols = extraCols || [];
   if (!items.length) return `<div class="empty-ok">Sin datos para este período.</div>`;
   const withCpa = items.map(it => ({ ...it, costPerConv: it.conv > 0 ? Math.round(it.spend/it.conv) : null }));
   if (!state.tblSort) state.tblSort = {};
   if (!state.tblSort[tableId]) state.tblSort[tableId] = { key: 'spend', dir: 'desc' };
   const { key: sk, dir: sd } = state.tblSort[tableId];
-  const sorted = sortRows(withCpa, sk, sd, ['name']);
+  const sorted = sortRows(withCpa, sk, sd, ['name', ...extraCols.map(x => x[0])]);
   const rows = sorted.map(it => `<tr>
       <td class="mtbl-name" title="${esc(it.name)}">${esc(it.name)}</td>
+      ${extraCols.map(([k]) => `<td class="mtbl-name" title="${esc(it[k] || '')}">${esc(it[k] || '—')}</td>`).join('')}
       <td class="right col-impr">${fmtInt(it.impr)}</td>
       <td class="right col-clicks">${fmtInt(it.clicks)}</td>
       <td class="right col-ctr">${it.ctr!=null?fmtPct(it.ctr):'—'}</td>
@@ -2337,6 +2461,7 @@ function metricTableHTML(items, tableId, leads) {
   return `<div class="table-wrap scroll-tbl" style="margin-top:0"><table class="compact" id="${tableId}">
     <thead><tr>
       ${sortTh('Nombre','name','mtbl-name',sk,sd)}
+      ${extraCols.map(([k, label]) => sortTh(label, k, 'mtbl-name', sk, sd)).join('')}
       ${sortTh('Impr.','impr','right col-impr',sk,sd)}
       ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
       ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
@@ -2347,7 +2472,7 @@ function metricTableHTML(items, tableId, leads) {
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr class="tbl-total-row">
-      <td>Total</td>
+      <td>Total</td>${extraCols.map(() => '<td></td>').join('')}
       <td class="right col-impr">${fmtInt(totals.impr)}</td>
       <td class="right col-clicks">${fmtInt(totals.clicks)}</td>
       <td class="right col-ctr">${totalCtr!=null?fmtPct(totalCtr):'—'}</td>
@@ -2359,10 +2484,79 @@ function metricTableHTML(items, tableId, leads) {
   </table></div>`;
 }
 function viewToggleLink(id, defaultMode) {
-  const mode = (state.chartViewMode && state.chartViewMode[id]) || defaultMode || 'chart';
+  const mode = (state.chartViewMode && state.chartViewMode[id]) || defaultMode || 'table';
   const label = mode === 'chart' ? 'Ver tabla completa' : 'Ver gráfico';
-  return `<button class="btn-link-sm" data-toggle-view="${id}" data-toggle-default="${defaultMode || 'chart'}">${label}</button>`;
+  return `<button class="btn-link-sm" data-toggle-view="${id}" data-toggle-default="${defaultMode || 'table'}">${label}</button>`;
 }
+/* ===== filtro campaña / grupo (Meta, compartido entre las 3 tablas) ===== */
+function hierComboHTML(key, title, allLabel, options, selected) {
+  const open = state.hierOpen === key;
+  const q = ((state.hierSearch || {})[key] || '').toLowerCase().trim();
+  const shown = q ? options.filter(o => (o.name + ' ' + (o.sub || '')).toLowerCase().includes(q)) : options;
+  const label = selected.length === 0 ? `${title}: ${allLabel}` : selected.length === 1 ? `${title}: ${(options.find(o => o.id === selected[0]) || { name: '1' }).name}` : `${title}: ${selected.length}`;
+  const items = shown.length ? shown.map(o => `<label class="cli-combo-item hf-item"><input type="checkbox" data-hf-opt="${key}" value="${esc(o.id)}" ${selected.includes(o.id) ? 'checked' : ''}><span class="hf-name">${esc(o.name)}</span>${o.sub ? `<span class="hf-sub">${esc(o.sub)}</span>` : ''}</label>`).join('') : `<div class="cli-combo-empty">Sin resultados</div>`;
+  return `<div class="cli-combo hier-combo ${open ? 'open' : ''}">
+    <button type="button" class="select cli-select-btn hf-btn" data-hf-btn="${key}"><span class="hf-btn-label">${esc(label)}</span>
+      <svg class="dr-chev" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 7.5 5 5 5-5"/></svg></button>
+    <div class="cli-combo-pop hf-pop ${open ? 'show' : ''}">
+      <input type="text" class="input cli-combo-search" data-hf-search="${key}" placeholder="Buscar…" autocomplete="off" value="${esc((state.hierSearch || {})[key] || '')}">
+      <div class="cli-combo-list" data-hf-list="${key}">${items}</div>
+    </div>
+  </div>`;
+}
+function hierFilterBarHTML(c) {
+  const H = c.metaLiveHierarchy; if (!H) return '';
+  const f = hierFilterFor(c);
+  const seen = {}, camps = [], sets = [];
+  H.rows.forEach(r => {
+    if (!seen['c' + r.campId]) { seen['c' + r.campId] = 1; camps.push({ id: r.campId, name: r.campName }); }
+    if ((!f.camps.length || f.camps.includes(r.campId)) && !seen['s' + r.setId]) { seen['s' + r.setId] = 1; sets.push({ id: r.setId, name: r.setName, sub: r.campName }); }
+  });
+  camps.sort((a, b) => a.name.localeCompare(b.name)); sets.sort((a, b) => a.name.localeCompare(b.name));
+  const active = f.camps.length || f.sets.length;
+  const note = active ? `<span class="hf-note">Filtrando ${f.camps.length ? f.camps.length + ' campaña' + (f.camps.length > 1 ? 's' : '') : ''}${f.camps.length && f.sets.length ? ' · ' : ''}${f.sets.length ? f.sets.length + ' grupo' + (f.sets.length > 1 ? 's' : '') : ''} — las tarjetas y la tendencia de arriba muestran toda la cuenta.</span>` : '';
+  return `<div class="hier-filter"><span class="hf-label">Filtrar por</span>${hierComboHTML('camp', 'Campañas', 'todas', camps, f.camps)}${hierComboHTML('set', 'Grupos', 'todos', sets, f.sets)}${active ? `<button type="button" class="btn-link-sm" id="hfClear">Limpiar</button>` : ''}${note}</div>`;
+}
+function wireHierFilter(c) {
+  const H = c && c.metaLiveHierarchy; if (!H) return;
+  const f = hierFilterFor(c);
+  if (!state.hierSearch) state.hierSearch = {};
+  document.querySelectorAll('[data-hf-btn]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const k = b.dataset.hfBtn;
+    state.hierOpen = state.hierOpen === k ? null : k;
+    state.hierSearch[k] = '';
+    renderCliente();
+  }));
+  document.querySelectorAll('[data-hf-search]').forEach(inp => inp.addEventListener('input', () => {
+    state.hierSearch[inp.dataset.hfSearch] = inp.value;
+    renderCliente();
+  }));
+  document.querySelectorAll('[data-hf-opt]').forEach(cb => cb.addEventListener('change', () => {
+    const k = cb.dataset.hfOpt, arr = k === 'camp' ? f.camps : f.sets;
+    const i = arr.indexOf(cb.value);
+    if (cb.checked && i < 0) arr.push(cb.value); else if (!cb.checked && i >= 0) arr.splice(i, 1);
+    if (k === 'camp' && f.camps.length) {
+      const valid = new Set(H.rows.filter(r => f.camps.includes(r.campId)).map(r => r.setId));
+      f.sets = f.sets.filter(s => valid.has(s));
+    }
+    const list = document.querySelector(`[data-hf-list="${k}"]`);
+    state.hierScroll = list ? list.scrollTop : 0;
+    renderCliente();
+  }));
+  const clr = document.getElementById('hfClear');
+  if (clr) clr.addEventListener('click', () => { f.camps = []; f.sets = []; state.hierOpen = null; state.hierSearch = {}; renderCliente(); });
+  if (state.hierOpen) {
+    const inp = document.querySelector(`[data-hf-search="${state.hierOpen}"]`);
+    const list = document.querySelector(`[data-hf-list="${state.hierOpen}"]`);
+    if (list && state.hierScroll) list.scrollTop = state.hierScroll;
+    if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  }
+  state.hierScroll = 0;
+}
+document.addEventListener('mousedown', e => {
+  if (state.hierOpen && !e.target.closest('.hier-combo')) { state.hierOpen = null; renderCliente(); }
+});
 function chartsSectionHTML(c) {
   const leads = isLeads(c);
   const campAgg = campaignTypeAgg(c), adsetAgg = adsetTypeAgg(c), adAgg = adTypeAgg(c);
@@ -2409,16 +2603,20 @@ function chartsSectionHTML(c) {
   }).join('');
 
   if (!state.chartViewMode) state.chartViewMode = {};
-  const campMode = state.chartViewMode.camp || 'chart';
-  const adsetMode = state.chartViewMode.adset || 'chart';
-  const adMode = state.chartViewMode.ad || 'chart';
+  const campMode = state.chartViewMode.camp || 'table';
+  const adsetMode = state.chartViewMode.adset || 'table';
+  const adMode = state.chartViewMode.ad || 'table';
+  const hasH = !!c.metaLiveHierarchy;
+  const adsetCols = hasH ? [['campaña', 'Campaña']] : [];
+  const adCols = hasH ? [['campaña', 'Campaña'], ['grupo', 'Grupo']] : [];
 
   return `
     <div class="exec-sub">Performance por campaña</div>
+    ${hierFilterBarHTML(c)}
     <div class="chart-grid-2">
       <div class="chart-box">
         <div class="chart-title-row">
-          <div class="chart-title">${cm.label} por campaña</div>
+          <div class="chart-title">${campMode==='chart' ? `${cm.label} por campaña` : 'Campañas'}</div>
           <div class="chart-title-actions">
             ${campMode==='chart'?`<select class="select select-sm" id="campMetricSel">${campMetricOpts}</select>`:''}
             ${viewToggleLink('camp')}
@@ -2431,23 +2629,23 @@ function chartsSectionHTML(c) {
     <div class="exec-sub">Performance por grupo de anuncios y anuncio</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
-        <div class="chart-title">${am.label} por grupo de anuncios</div>
+        <div class="chart-title">${adsetMode==='chart' ? `${am.label} por grupo de anuncios` : 'Grupos de anuncios'}</div>
         <div class="chart-title-actions">
           ${adsetMode==='chart'?`<select class="select select-sm" id="adsetMetricSel">${adsetMetricOpts}</select>`:''}
           ${viewToggleLink('adset')}
         </div>
       </div>
-      ${adsetMode==='chart' ? roasByAdset : metricTableHTML(adsetAgg, 'adsetTable', leads)}
+      ${adsetMode==='chart' ? roasByAdset : metricTableHTML(adsetAgg, 'adsetTable', leads, adsetCols)}
     </div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
-        <div class="chart-title">${apm.label} por anuncio</div>
+        <div class="chart-title">${adMode==='chart' ? `${apm.label} por anuncio` : 'Anuncios'}</div>
         <div class="chart-title-actions">
           ${adMode==='chart'?`<select class="select select-sm" id="adPerfMetricSel">${adPerfMetricOpts}</select>`:''}
           ${viewToggleLink('ad')}
         </div>
       </div>
-      ${adMode==='chart' ? adPerf : metricTableHTML(adAgg, 'adTable', leads)}
+      ${adMode==='chart' ? adPerf : metricTableHTML(adAgg, 'adTable', leads, adCols)}
     </div>`;
 }
 
@@ -2659,7 +2857,7 @@ function pinterestSectionHTML(c) {
   }).join('');
 
   if (!state.chartViewMode) state.chartViewMode = {};
-  const pinCampMode = state.chartViewMode.pinCamp || 'chart';
+  const pinCampMode = state.chartViewMode.pinCamp || 'table';
   const pinsMode = state.chartViewMode.pins || 'table';
   if (!state.pinChartMetric) state.pinChartMetric = 'roas';
   let pinChartMetric = state.pinChartMetric;
@@ -2694,7 +2892,7 @@ function pinterestSectionHTML(c) {
     <div class="exec-sub">Performance por campaña</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
-        <div class="chart-title">${pcm.label} por campaña</div>
+        <div class="chart-title">${pinCampMode==="chart" ? `${pcm.label} por campaña` : "Campañas"}</div>
         <div class="chart-title-actions">
           ${pinCampMode==='chart'?`<select class="select select-sm" id="pinCampMetricSel">${pinCampMetricOpts}</select>`:''}
           ${viewToggleLink('pinCamp')}
@@ -2859,8 +3057,8 @@ function tiktokSectionHTML(c) {
   }).join('');
 
   if (!state.chartViewMode) state.chartViewMode = {};
-  const ttCampMode = state.chartViewMode.ttCamp || 'chart';
-  const ttVideoMode = state.chartViewMode.ttVideo || 'chart';
+  const ttCampMode = state.chartViewMode.ttCamp || 'table';
+  const ttVideoMode = state.chartViewMode.ttVideo || 'table';
 
   return `
     <div class="exec-sub">Resumen ejecutivo · Performance</div>
@@ -2876,7 +3074,7 @@ function tiktokSectionHTML(c) {
     <div class="exec-sub">Performance por campaña</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
-        <div class="chart-title">${tcm.label} por campaña</div>
+        <div class="chart-title">${ttCampMode==="chart" ? `${tcm.label} por campaña` : "Campañas"}</div>
         <div class="chart-title-actions">
           ${ttCampMode==='chart'?`<select class="select select-sm" id="ttCampMetricSel">${ttCampMetricOpts}</select>`:''}
           ${viewToggleLink('ttCamp')}
@@ -2887,7 +3085,7 @@ function tiktokSectionHTML(c) {
     <div class="exec-sub">Top videos</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
-        <div class="chart-title">${tvm.label} por video</div>
+        <div class="chart-title">${ttVideoMode==="chart" ? `${tvm.label} por video` : "Videos"}</div>
         <div class="chart-title-actions">
           ${ttVideoMode==='chart'?`<select class="select select-sm" id="ttVideoMetricSel">${ttVideoMetricOpts}</select>`:''}
           ${viewToggleLink('ttVideo')}
@@ -2933,6 +3131,9 @@ function renderCliente() {
     host.innerHTML = `<div class="fnl" style="text-align:center;color:var(--text-faint)">Cargando clientes…</div>`;
     return;
   }
+  // Cada vez que se entra a otro cliente o plataforma, las tablas arrancan en modo tabla y sin filtros abiertos.
+  const modeKey = state.cliClient + '|' + state.cliView;
+  if (state.modeKey !== modeKey) { state.modeKey = modeKey; state.chartViewMode = {}; state.hierOpen = null; state.hierSearch = {}; }
   const objToggle = `<div class="seg" id="cliObjSeg">
       <button data-obj="ventas" class="${state.cliObjetivo!=='leads'?'active':''}">Ventas</button>
       <button data-obj="leads" class="${state.cliObjetivo==='leads'?'active':''}">Leads</button>
@@ -3012,7 +3213,7 @@ function renderCliente() {
     document.querySelectorAll('[data-toggle-view]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.toggleView;
       if (!state.chartViewMode) state.chartViewMode = {};
-      const cur = state.chartViewMode[id] || b.dataset.toggleDefault || 'chart';
+      const cur = state.chartViewMode[id] || b.dataset.toggleDefault || 'table';
       state.chartViewMode[id] = cur === 'chart' ? 'table' : 'chart';
       renderCliente();
     }));
@@ -3028,6 +3229,8 @@ function renderCliente() {
       }));
     });
     if (c) wireTrendChart(c, state.cliView === 'google' ? 'google' : state.cliView === 'pinterest' ? 'pinterest' : state.cliView === 'tiktok' ? 'tiktok' : 'meta');
+    if (c && state.cliView === 'meta') wireHierFilter(c);
+    wireResizableTables();
   };
 
   if (!c) {

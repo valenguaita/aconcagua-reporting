@@ -866,6 +866,10 @@ function periodFactor(period) {
 // se solapa con purchase). Sumar los tres cuenta cada compra hasta 3 veces — hay que elegir
 // uno solo, en orden de preferencia (el más agregado/recomendado por Meta primero).
 const META_PURCHASE_ACTION_PRIORITY = ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'];
+// Mismo criterio para los pasos del embudo: un solo action_type por paso (el más agregado primero) para no contar doble.
+const META_LPV_ACTION_PRIORITY = ['omni_landing_page_view', 'landing_page_view'];
+const META_ATC_ACTION_PRIORITY = ['omni_add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart', 'add_to_cart'];
+const META_CHECKOUT_ACTION_PRIORITY = ['omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout', 'initiate_checkout'];
 function metaActionSum(list, types) {
   if (!list) return 0;
   for (const type of types) {
@@ -891,7 +895,8 @@ async function fetchMetaTotals(authToken, accountId, since, until) {
     const impr = +row.impressions || 0;
     const clicks = +row.clicks || 0;
     return {
-      spend, conv, revenue, impr, clicks,
+      spend, conv, revenue, impr, clicks, reach: +row.reach || 0,
+      atc: metaActionSum(row.actions, META_ATC_ACTION_PRIORITY), chk: metaActionSum(row.actions, META_CHECKOUT_ACTION_PRIORITY),
       roas: spend > 0 ? revenue/spend : null,
       cpa: conv > 0 ? spend/conv : null,
       ctr: impr > 0 ? clicks/impr*100 : null
@@ -913,9 +918,23 @@ async function fetchMetaHierarchy(authToken, accountId, since, until) {
       spend: +r.spend || 0,
       conv: metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY),
       revenue: metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY),
+      lpv: metaActionSum(r.actions, META_LPV_ACTION_PRIORITY),
+      atc: metaActionSum(r.actions, META_ATC_ACTION_PRIORITY),
+      chk: metaActionSum(r.actions, META_CHECKOUT_ACTION_PRIORITY),
       impr: +r.impressions || 0, clicks: +r.clicks || 0
     }))
   };
+}
+// Embudo real de Meta: suma las filas a nivel anuncio; con filtro activo (y ignoreFilter=false) solo las filtradas.
+function metaFunnel(c, ignoreFilter) {
+  const f = (!ignoreFilter && hierFilterActive(c)) ? state.hierFilter : null;
+  const t = { impr: 0, clicks: 0, lpv: 0, atc: 0, chk: 0, purch: 0 };
+  c.metaLiveHierarchy.rows.forEach(r => {
+    if (f && f.camps.length && !f.camps.includes(r.campId)) return;
+    if (f && f.sets.length && !f.sets.includes(r.setId)) return;
+    t.impr += r.impr; t.clicks += r.clicks; t.lpv += r.lpv; t.atc += r.atc; t.chk += r.chk; t.purch += r.conv;
+  });
+  return Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Math.round(v)]));
 }
 // Filtro campaña/grupo del Dashboard Cliente (Meta). Se reinicia al cambiar de cliente.
 function hierFilterFor(c) {
@@ -1207,7 +1226,8 @@ async function buildClients(period) {
         // de un período anterior de igual longitud — no el primer día contra el último día
         // (eso es lo que hace deriveMetrics por defecto, pensado para el mock, muy ruidoso con
         // datos reales día a día).
-        const prevTotals = await fetchMetaTotals(authToken, accountId, prevSince, prevUntil);
+        const [prevTotals, curTotals] = await Promise.all([fetchMetaTotals(authToken, accountId, prevSince, prevUntil), fetchMetaTotals(authToken, accountId, sinceStr, untilStr)]);
+        if (curTotals) metaRaw.reach = curTotals.reach;
         if (prevTotals) {
           const revenue = metaRaw.roas != null ? metaRaw.spend * metaRaw.roas : null;
           const cpa = metaRaw.conv > 0 ? metaRaw.spend / metaRaw.conv : null;
@@ -1227,6 +1247,11 @@ async function buildClients(period) {
           metaRaw.prevRoas = prevTotals.roas;
           metaRaw.prevCpa = prevTotals.cpa;
           metaRaw.prevCtr = prevTotals.ctr;
+          metaRaw.prevImpr = prevTotals.impr;
+          metaRaw.prevClicks = prevTotals.clicks;
+          metaRaw.prevReach = prevTotals.reach;
+          metaRaw.prevAtc = prevTotals.atc;
+          metaRaw.prevChk = prevTotals.chk;
         }
         metaLiveHierarchy = await fetchMetaHierarchy(authToken, accountId, sinceStr, untilStr);
       } catch (e) { metaError = e.message; }
@@ -3080,13 +3105,13 @@ function pinterestSectionHTML(c) {
     execCard('Costo', fmtMoney(R.spend), periodLabel(), 'blue', L?dl(R.spend, P&&P.spend):null, L?sGasto:R.trend, tM),
     execCard('Impresiones', fmtInt(R.impr), '', 'purple', L?dl(R.impr, P&&P.impr):null, sImpr, tI),
     execCard('Clics salientes', fmtInt(R.clicks), '', '', L?dl(R.clicks, P&&P.clicks):null, sClicks, tI),
-    execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, sCtr, tP),
-    execCard('CPC prom.', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', null, null),
+    execCard('CTR', fmtPct(m.ctr), 'click-through', '', L?dl(m.ctr, P&&P.impr>0?P.clicks/P.impr*100:null):null, sCtr, tP),
+    execCard('CPC prom.', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', L?dl(cpc, P&&P.clicks>0?P.spend/P.clicks:null):null, null),
     execCard('Guardados', fmtInt(saves), 'saves', 'green', L?dl(saves, P&&P.saves):null, sSaves, tI),
-    execCard('Tasa de guardado', fmtPct(saveRatePct, 2), 'guardados / impresiones', '', null, null),
+    execCard('Tasa de guardado', fmtPct(saveRatePct, 2), 'guardados / impresiones', '', L?dl(saveRatePct, P&&P.impr>0?P.saves/P.impr*100:null):null, null),
     execCard('Conversiones', fmtInt(R.conv), '', 'green', L?dl(R.conv, P&&P.conv):null, sConv, tI),
-    execCard('Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', 'costo por compra', 'amber', null, null),
-    execCard('ROAS', m.roas!=null?fmtRoas(m.roas):'—', 'retorno', 'green', null, null)
+    execCard('Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', 'costo por compra', 'amber', L?dl(m.cpa, P&&P.conv>0?P.spend/P.conv:null):null, null),
+    execCard('ROAS', m.roas!=null?fmtRoas(m.roas):'—', 'retorno', 'green', L?dl(m.roas, P&&P.spend>0?P.revenue/P.spend:null):null, null)
   ].join('');
 
   const leadsP = isLeads(c);
@@ -3512,11 +3537,15 @@ function renderCliente() {
   const cpm = impresiones>0 ? spend/impresiones*1000 : null;
   const cpa = purchases>0 ? Math.round(spend/purchases) : null;
   const revenue = roas!=null ? Math.round(spend*roas) : null;
-  const reach = impresiones>0 ? Math.round(impresiones/2.6) : 0;
+  // Con datos reales: alcance, add to cart, checkout y landing page views vienen de Meta. Solo en el
+  // demo (sin cuenta conectada) se usan estimaciones fijas.
+  const realFunnel = !!c.metaLiveHierarchy;
+  const FA = realFunnel ? metaFunnel(c, true) : null;
+  const reach = c.metaLive ? (r.reach > 0 ? r.reach : null) : (impresiones>0 ? Math.round(impresiones/2.6) : 0);
   const freq = reach>0 ? impresiones/reach : null;
-  const lpv = Math.round(clicks*0.82);
-  const atc = leads ? null : Math.round(purchases*7);
-  const checkout = leads ? null : Math.round(purchases*2.5);
+  const lpv = realFunnel ? FA.lpv : Math.round(clicks*0.82);
+  const atc = leads ? null : (realFunnel ? FA.atc : Math.round(purchases*7));
+  const checkout = leads ? null : (realFunnel ? FA.chk : Math.round(purchases*2.5));
   const tasaConv = clicks>0 ? purchases/clicks*100 : null;
   const valorProm = (revenue && purchases) ? Math.round(revenue/purchases) : null;
   const trendPct = (deriveMetrics(c.platforms.meta)||{}).trendPct || 0;
@@ -3535,7 +3564,18 @@ function renderCliente() {
   const ctrD = live ? (r.ctrD != null ? r.ctrD : null) : (w ? seriesDelta(w.ctr) : null);
   const convD = live ? (r.convD != null ? r.convD : null) : (convSeries ? seriesDelta(convSeries) : null);
   const revD = live ? (r.revD != null ? r.revD : null) : (revSeries ? seriesDelta(revSeries) : null);
-  const genericD = trendPct || null;
+  // Cada tarjeta compara SU métrica contra la misma métrica del período anterior (solo con cuenta conectada).
+  const dOwn = (cur, prev) => (live && cur != null && prev != null) ? pctDelta(cur, prev) : null;
+  const prevOk = live && r.prevSpend != null;
+  const cpcD = prevOk && r.prevClicks > 0 ? dOwn(cpc, r.prevSpend / r.prevClicks) : null;
+  const cpmD = prevOk && r.prevImpr > 0 ? dOwn(cpm, r.prevSpend / r.prevImpr * 1000) : null;
+  const imprD = prevOk ? dOwn(impresiones, r.prevImpr) : null;
+  const reachD = prevOk && r.prevReach > 0 ? dOwn(reach, r.prevReach) : null;
+  const freqD = prevOk && r.prevReach > 0 && r.prevImpr > 0 ? dOwn(freq, r.prevImpr / r.prevReach) : null;
+  const tasaD = prevOk && r.prevClicks > 0 ? dOwn(tasaConv, r.prevConv / r.prevClicks * 100) : null;
+  const valorD = prevOk && r.prevConv > 0 && r.prevRevenue ? dOwn(valorProm, r.prevRevenue / r.prevConv) : null;
+  const atcD = prevOk ? dOwn(atc, r.prevAtc) : null;
+  const chkD = prevOk ? dOwn(checkout, r.prevChk) : null;
   // La línea vuelve a mostrar la evolución real día a día (o semana a semana en el demo) — el
   // color ya no depende de ella (ver EXEC_CARD_SPARK_COLOR), así que no hace falta reducirla a
   // 2 puntos para evitar contradicciones: mostrar la forma real aporta más que una diagonal sola.
@@ -3555,31 +3595,36 @@ function renderCliente() {
     execCard('ROAS', leads?'—':fmtRoas(roas), leads?'obj. leads':'retorno', 'green', roasD, roasSpark, mR),
     execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leads?'costo por lead':'costo por compra', 'amber', cpaD, cpaSpark, mM),
     execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, ctrSpark, mP),
-    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', genericD, null),
-    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', genericD, null),
-    execCard('Alcance', fmtInt(reach), 'personas', 'purple', genericD, null),
-    execCard('Impresiones', fmtInt(impresiones), '', 'purple', genericD, null),
-    execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', null, null)
+    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', cpcD, null),
+    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', cpmD, null),
+    execCard('Alcance', reach!=null?fmtInt(reach):'—', 'personas', 'purple', reachD, null),
+    execCard('Impresiones', fmtInt(impresiones), '', 'purple', imprD, null),
+    execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', freqD, null)
   ].join('');
   const conv = [
-    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', convD, liveDays ? liveDays.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null) : convSpark, mP),
-    execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', null, null),
+    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', tasaD, liveDays ? liveDays.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null) : convSpark, mP),
+    execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', valorD, null),
     execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSpark, mM),
     execCard(leads?'Leads':'Compras', fmtInt(purchases), '', 'green', convD, convSpark, mI),
-    execCard('Add to cart', atc!=null?fmtInt(atc):'—', leads?'no aplica':'', 'amber', null, null),
-    execCard('Checkouts', checkout!=null?fmtInt(checkout):'—', leads?'no aplica':'', 'amber', null, null)
+    execCard('Add to cart', atc!=null?fmtInt(atc):'—', leads?'no aplica':'', 'amber', atcD, null),
+    execCard('Checkouts', checkout!=null?fmtInt(checkout):'—', leads?'no aplica':'', 'amber', chkD, null)
   ].join('');
 
   const FNL_COLORS = ['#A88AFF','#5B9BFF','#3FC8C0','#00EABD','#F2B441','#F0A93C'];
-  const stages = leads
-    ? [['Impresiones',impresiones],['Clics',clicks],['Landing page views',lpv],['Leads',purchases]]
-    : [['Impresiones',impresiones],['Clics',clicks],['Landing page views',lpv],['Add to cart',atc],['Checkout',checkout],['Compras',purchases]];
+  const FF = realFunnel ? metaFunnel(c) : null;
+  const stages = realFunnel
+    ? (leads
+      ? [['Impresiones',FF.impr],['Clics',FF.clicks],['Landing page views',FF.lpv],['Leads',FF.purch]]
+      : [['Impresiones',FF.impr],['Clics',FF.clicks],['Landing page views',FF.lpv],['Add to cart',FF.atc],['Checkout',FF.chk],['Compras',FF.purch]])
+    : (leads
+      ? [['Impresiones',impresiones],['Clics',clicks],['Landing page views',lpv],['Leads',purchases]]
+      : [['Impresiones',impresiones],['Clics',clicks],['Landing page views',lpv],['Add to cart',atc],['Checkout',checkout],['Compras',purchases]]);
   const logs = stages.map(s => Math.log10(Math.max(1, s[1])));
   const maxL = Math.max(...logs), minL = Math.min(...logs), span = (maxL-minL)||1;
   const funnelRows = stages.map((s,i) => {
     const w2 = ((logs[i]-minL)/span)*84 + 16;
     const col = FNL_COLORS[i] || FNL_COLORS[FNL_COLORS.length-1];
-    const cv = i>0 ? `<div class="fnl-conv">↓ <b>${(stages[i][1]/stages[i-1][1]*100).toFixed(1)}%</b> de ${esc(stages[i-1][0]).toLowerCase()}</div>` : '';
+    const cv = i>0 ? `<div class="fnl-conv">↓ <b>${stages[i-1][1]>0 ? (stages[i][1]/stages[i-1][1]*100).toFixed(1) : '—'}%</b> de ${esc(stages[i-1][0]).toLowerCase()}</div>` : '';
     return `${cv}<div class="fnl-stage"><div class="fnl-row"><span class="fnl-name">${esc(s[0])}</span><span class="fnl-count num">${fmtInt(s[1])}</span></div><div class="fnl-bar"><div class="fnl-fill" style="width:${w2.toFixed(1)}%;background:${col}"></div></div></div>`;
   }).join('');
   const vsCol = trendPct>=0 ? 'var(--green)' : 'var(--red)';
@@ -3602,7 +3647,7 @@ function renderCliente() {
     pacingWidgetHTML(c, 'meta') +
     hierFilterBarHTML(c) +
     trendChartSectionHTML(c, 'meta') +
-    `<div class="exec-sub">Embudo de conversión ${vsPrev}</div><div class="fnl">${funnelRows}</div>` +
+    `<div class="exec-sub">Embudo de conversión${realFunnel && hierFilterActive(c) ? ' · filtrado' : ''} ${vsPrev}</div><div class="fnl">${funnelRows}</div>` +
     chartsSectionHTML(c);
   wire();
 }

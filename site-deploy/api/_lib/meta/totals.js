@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
   }
 
   const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
-  const fields = 'spend,impressions,clicks,actions,action_values';
+  const fields = 'spend,impressions,reach,clicks,actions,action_values';
   const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
   const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?fields=${fields}&time_range=${timeRange}&access_token=${encodeURIComponent(process.env.META_ACCESS_TOKEN)}`;
 

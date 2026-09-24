@@ -1170,9 +1170,9 @@ function parseGoogleDetail(kwRows, stRows, devRows, shRows) {
   };
 }
 function loadGoogleDetail(c) {
-  if (c.googleDetail || !c.googleId || !c.googleRange || !state.session) return;
+  if (c.googleDetail || !c.googleId || !c.range || !state.session) return;
   c.googleDetail = { status: 'loading' };
-  const tok = state.session.access_token, { since, until } = c.googleRange;
+  const tok = state.session.access_token, { since, until } = c.range;
   Promise.all(['keywords', 'searchterms', 'devices', 'share'].map(e => fetchGoogleRows(e, tok, c.googleId, since, until)))
     .then(([kw, st, dv, sh]) => { c.googleDetail = { status: 'ok', ...parseGoogleDetail(kw, st, dv, sh) }; })
     .catch(e => { c.googleDetail = { status: 'error', message: e.message }; })
@@ -1250,7 +1250,7 @@ async function buildClients(period) {
       const r = await googleP;
       if (r.g) { googleRaw = r.g.raw; googleLive = r.g.live; } else googleError = r.e.message;
     }
-    return { ...row, platforms: { meta: metaRaw, google: googleRaw, pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError, pinterestLive, pinterestError, googleLive, googleError, googleRange: { since: sinceStr, until: untilStr } };
+    return { ...row, platforms: { meta: metaRaw, google: googleRaw, pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError, pinterestLive, pinterestError, googleLive, googleError, range: { since: sinceStr, until: untilStr } };
   }));
 }
 
@@ -2230,6 +2230,45 @@ function groupAgg(items, keyFn) {
     ctr: g.impr>0 ? +(g.clicks/g.impr*100).toFixed(2) : null
   })).sort((a,b) => b.spend-a.spend);
 }
+/* Evolución diaria filtrada por campaña/grupo (Meta): datos diarios por grupo de anuncios, se piden solo al activar un filtro. */
+async function fetchMetaHierDaily(authToken, accountId, since, until) {
+  const url = `/api/meta?type=hierdaily&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return (json.data || []).filter(r => r.adset_id).map(r => ({
+    date: r.date_start, campId: r.campaign_id, setId: r.adset_id,
+    spend: +r.spend || 0, conv: metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY), revenue: metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY),
+    impr: +r.impressions || 0, clicks: +r.clicks || 0
+  }));
+}
+function hierFilterActive(c) {
+  const f = state.hierFilter;
+  return !!(f && f.clientId === c.metaId && (f.camps.length || f.sets.length));
+}
+function loadHierDaily(c) {
+  const accountId = state.clientAccounts[c.metaId];
+  if (c.hierDaily || !c.metaLiveHierarchy || !accountId || !c.range || !state.session) return;
+  c.hierDaily = { status: 'loading' };
+  fetchMetaHierDaily(state.session.access_token, accountId, c.range.since, c.range.until)
+    .then(rows => { c.hierDaily = { status: 'ok', rows }; })
+    .catch(e => { c.hierDaily = { status: 'error', message: e.message }; })
+    .then(() => { if (state.view === 'cliente' && state.cliView === 'meta' && state.cliClient === c.metaId) renderCliente(); });
+}
+function metaFilteredDays(c) {
+  const H = c.hierDaily; if (!H || H.status !== 'ok' || !hierFilterActive(c)) return null;
+  const f = state.hierFilter, by = {};
+  H.rows.forEach(r => {
+    if (f.camps.length && !f.camps.includes(r.campId)) return;
+    if (f.sets.length && !f.sets.includes(r.setId)) return;
+    const x = by[r.date] || (by[r.date] = { date: r.date, spend: 0, conv: 0, revenue: 0, impr: 0, clicks: 0 });
+    x.spend += r.spend; x.conv += r.conv; x.revenue += r.revenue; x.impr += r.impr; x.clicks += r.clicks;
+  });
+  return Object.values(by).sort((a, b) => a.date < b.date ? -1 : 1).map(x => ({
+    date: x.date, gasto: Math.round(x.spend), conv: Math.round(x.conv), cpa: x.conv > 0 ? Math.round(x.spend/x.conv) : 0,
+    roas: x.spend > 0 ? +(x.revenue/x.spend).toFixed(2) : null, impr: Math.round(x.impr), clicks: Math.round(x.clicks)
+  }));
+}
 function campaignTypeAgg(c) { if (c.metaLiveHierarchy) return metaHierAgg(c, 'campaign'); return groupAgg(clientCampaignsMeta(c), cm => cm.name.split('—')[0].trim()); }
 function adsetTypeAgg(c) { if (c.metaLiveHierarchy) return metaHierAgg(c, 'adset'); return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets), a => a.name); }
 function adTypeAgg(c) { if (c.metaLiveHierarchy) return metaHierAgg(c, 'ad'); return groupAgg(clientCampaignsMeta(c).flatMap(cm => cm.adsets).flatMap(a => a.ads), d => d.name.replace(/\s*\d+$/, '')); }
@@ -2360,6 +2399,7 @@ function weeklyForPlatform(c, platform) {
   return { gasto, cpa, roas };
 }
 function dailyTrendData(c, fromDate, days, platform) {
+  if ((!platform || platform === 'meta') && c.metaLiveHierarchy) { const fd = metaFilteredDays(c); if (fd) return liveDaysInRange(fd, fromDate, days); }
   if (platform === 'tiktok') return c.tiktokLive ? liveDaysInRange(c.tiktokLive.days, fromDate, days) : null;
   if (platform === 'pinterest' && c.pinterestLive) return liveDaysInRange(c.pinterestLive.days, fromDate, days);
   if (platform === 'google' && c.googleLive) return liveDaysInRange(c.googleLive.days, fromDate, days);
@@ -2485,7 +2525,7 @@ function trendChartSectionHTML(c, platform) {
   }
   return `<div class="exec-sub">Evolución diaria</div>
     <div class="chart-box chart-box-wide">
-      <div class="chart-title">${L.invLabel}, ${L.barLabel} y ${L.rightLabel} — ${periodLabel()}</div>
+      <div class="chart-title">${L.invLabel}, ${L.barLabel} y ${L.rightLabel} — ${periodLabel()}${(!platform || platform === 'meta') && c.metaLiveHierarchy && metaFilteredDays(c) ? ' · filtrado' : ''}</div>
       ${body}
     </div>`;
 }
@@ -2635,7 +2675,7 @@ function hierFilterBarHTML(c) {
   });
   camps.sort((a, b) => a.name.localeCompare(b.name)); sets.sort((a, b) => a.name.localeCompare(b.name));
   const active = f.camps.length || f.sets.length;
-  const note = active ? `<span class="hf-note">Filtrando ${f.camps.length ? f.camps.length + ' campaña' + (f.camps.length > 1 ? 's' : '') : ''}${f.camps.length && f.sets.length ? ' · ' : ''}${f.sets.length ? f.sets.length + ' grupo' + (f.sets.length > 1 ? 's' : '') : ''} — las tarjetas y la tendencia de arriba muestran toda la cuenta.</span>` : '';
+  const note = active ? `<span class="hf-note">Filtrando ${f.camps.length ? f.camps.length + ' campaña' + (f.camps.length > 1 ? 's' : '') : ''}${f.camps.length && f.sets.length ? ' · ' : ''}${f.sets.length ? f.sets.length + ' grupo' + (f.sets.length > 1 ? 's' : '') : ''} — el gráfico de evolución diaria sigue el filtro; las tarjetas de arriba muestran toda la cuenta.${c.hierDaily && c.hierDaily.status === 'loading' ? ' Cargando evolución diaria filtrada…' : ''}${c.hierDaily && c.hierDaily.status === 'error' ? ' No se pudo traer la evolución diaria filtrada: ' + esc(c.hierDaily.message) : ''}</span>` : '';
   return `<div class="hier-filter"><span class="hf-label">Filtrar por</span>${hierComboHTML('camp', 'Campañas', 'todas', camps, f.camps)}${hierComboHTML('set', 'Grupos', 'todos', sets, f.sets)}${active ? `<button type="button" class="btn-link-sm" id="hfClear">Limpiar</button>` : ''}${note}</div>`;
 }
 function wireHierFilter(c) {
@@ -3459,6 +3499,7 @@ function renderCliente() {
     host.innerHTML = head + tiktokSectionHTML(c);
     wire(); return;
   }
+  if (hierFilterActive(c)) loadHierDaily(c);
   const r = c.platforms.meta;
   if (!r || r.spend === 0) {
     host.innerHTML = head + '<div class="fnl" style="text-align:center;color:var(--text-faint)">Sin inversión registrada para este cliente en el período.</div>';

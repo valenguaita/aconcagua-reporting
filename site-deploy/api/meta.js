@@ -1,6 +1,7 @@
 const routes = {
   daily: require('./_lib/meta/daily'),
   hierarchy: require('./_lib/meta/hierarchy'),
+  hierdaily: require('./_lib/meta/hierdaily'),
   totals: require('./_lib/meta/totals'),
 };
 

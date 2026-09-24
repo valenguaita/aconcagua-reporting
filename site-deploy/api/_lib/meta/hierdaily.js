@@ -13,9 +13,9 @@ module.exports = async (req, res) => {
   }
 
   const acc = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
-  const fields = 'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,action_values';
+  const fields = 'campaign_id,adset_id,spend,impressions,clicks,actions,action_values';
   const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
-  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?level=ad&fields=${fields}&time_range=${timeRange}&limit=500&access_token=${encodeURIComponent(process.env.META_ACCESS_TOKEN)}`;
+  const url = `https://graph.facebook.com/${META_API_VERSION}/${acc}/insights?level=adset&time_increment=1&fields=${fields}&time_range=${timeRange}&limit=500&access_token=${encodeURIComponent(process.env.META_ACCESS_TOKEN)}`;
 
   try {
     res.status(200).json({ data: await fetchAllPages(url) });

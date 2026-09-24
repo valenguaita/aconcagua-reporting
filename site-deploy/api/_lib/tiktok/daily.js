@@ -1,4 +1,4 @@
-const { makeTikTokHandler, BASE_METRICS } = require('./_lib/tiktokHandler');
+const { makeTikTokHandler, BASE_METRICS } = require('../tiktokHandler');
 
 module.exports = makeTikTokHandler({
   level: 'AUCTION_ADVERTISER',

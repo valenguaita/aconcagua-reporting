@@ -879,7 +879,7 @@ function pctDelta(curr, prev) {
   return Math.round((curr - prev) / prev * 100);
 }
 async function fetchMetaTotals(authToken, accountId, since, until) {
-  const url = `/api/meta-totals?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const url = `/api/meta?type=totals&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
     const json = await res.json();
@@ -899,7 +899,7 @@ async function fetchMetaTotals(authToken, accountId, since, until) {
   } catch (e) { return null; }
 }
 async function fetchMetaHierarchy(authToken, accountId, since, until) {
-  const url = `/api/meta-hierarchy?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const url = `/api/meta?type=hierarchy&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
   if (json.error) { throw new Error(json.error); }
@@ -939,7 +939,7 @@ function metaHierAgg(c, level) {
   })).sort((a, b) => b.spend - a.spend);
 }
 async function fetchMetaInsightsDaily(authToken, accountId, since, until) {
-  const url = `/api/meta-daily?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const url = `/api/meta?type=daily&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   let res;
@@ -997,7 +997,7 @@ async function fetchMetaClient(token, accountId, fromDate, toDate) {
 }
 /* ===== TikTok Marketing API (datos reales, vía nuestro backend — el token vive en el servidor) ===== */
 async function fetchTikTokRows(endpoint, authToken, advertiserId, since, until) {
-  const url = `/api/${endpoint}?advertiserId=${encodeURIComponent(advertiserId)}&since=${since}&until=${until}`;
+  const url = `/api/tiktok?type=${endpoint}&advertiserId=${encodeURIComponent(advertiserId)}&since=${since}&until=${until}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
   if (json.error) throw new Error(json.error);
@@ -1007,8 +1007,8 @@ async function fetchTikTokRows(endpoint, authToken, advertiserId, since, until) 
 // el valor total de las compras (revenue) — ROAS = revenue / gasto.
 async function fetchTikTokClient(authToken, advertiserId, since, until, leads, prevSince, prevUntil) {
   const [totRows, dayRows, campRows, adRows, prevRows] = await Promise.all([
-    ...['tiktok-totals', 'tiktok-daily', 'tiktok-campaigns', 'tiktok-ads'].map(e => fetchTikTokRows(e, authToken, advertiserId, since, until)),
-    fetchTikTokRows('tiktok-totals', authToken, advertiserId, prevSince, prevUntil).catch(() => [])
+    ...['totals', 'daily', 'campaigns', 'ads'].map(e => fetchTikTokRows(e, authToken, advertiserId, since, until)),
+    fetchTikTokRows('totals', authToken, advertiserId, prevSince, prevUntil).catch(() => [])
   ]);
   const n = v => +v || 0;
   const parse = r => {
@@ -1053,7 +1053,7 @@ function liveDaysInRange(daysList, fromDate, days) {
 
 /* ===== Pinterest Ads API (datos reales, vía nuestro backend — el token vive en el servidor) ===== */
 async function fetchPinterestRows(endpoint, authToken, accountId, since, until) {
-  const url = `/api/pinterest-${endpoint}?accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
+  const url = `/api/pinterest?type=${endpoint}&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
   if (json.error) throw new Error(json.error);
@@ -1093,7 +1093,7 @@ async function fetchPinterestClient(authToken, accountId, since, until, prevSinc
 
 /* ===== Google Ads API (datos reales, vía nuestro backend — las credenciales viven en el servidor) ===== */
 async function fetchGoogleRows(endpoint, authToken, customerId, since, until) {
-  const url = `/api/google-${endpoint}?customerId=${encodeURIComponent(customerId)}&since=${since}&until=${until}`;
+  const url = `/api/google?type=${endpoint}&customerId=${encodeURIComponent(customerId)}&since=${since}&until=${until}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
   if (json.error) throw new Error(json.error);

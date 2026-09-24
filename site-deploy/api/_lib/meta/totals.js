@@ -1,4 +1,4 @@
-const { verifySession, isValidAccountId, isValidDate } = require('./_lib/verifySession');
+const { verifySession, isValidAccountId, isValidDate } = require('../verifySession');
 
 const META_API_VERSION = 'v21.0';
 

@@ -332,7 +332,7 @@
   .cli-combo-item:hover { background: var(--surface-2); }
   .cli-combo-item.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .cli-combo-empty { padding: 10px; font-size: 12.5px; color: var(--text-faint); text-align: center; }
-  .hier-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+  .hier-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 22px 0 4px; }
   .hf-label { font-size: 12px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .6px; }
   .hf-btn { min-height: 32px; padding: 4px 10px; font-size: 12.5px; max-width: 280px; }
   .hf-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2675,7 +2675,7 @@ function hierFilterBarHTML(c) {
   });
   camps.sort((a, b) => a.name.localeCompare(b.name)); sets.sort((a, b) => a.name.localeCompare(b.name));
   const active = f.camps.length || f.sets.length;
-  const note = active ? `<span class="hf-note">Filtrando ${f.camps.length ? f.camps.length + ' campaña' + (f.camps.length > 1 ? 's' : '') : ''}${f.camps.length && f.sets.length ? ' · ' : ''}${f.sets.length ? f.sets.length + ' grupo' + (f.sets.length > 1 ? 's' : '') : ''} — el gráfico de evolución diaria sigue el filtro; las tarjetas de arriba muestran toda la cuenta.${c.hierDaily && c.hierDaily.status === 'loading' ? ' Cargando evolución diaria filtrada…' : ''}${c.hierDaily && c.hierDaily.status === 'error' ? ' No se pudo traer la evolución diaria filtrada: ' + esc(c.hierDaily.message) : ''}</span>` : '';
+  const note = active ? `<span class="hf-note">Filtrando ${f.camps.length ? f.camps.length + ' campaña' + (f.camps.length > 1 ? 's' : '') : ''}${f.camps.length && f.sets.length ? ' · ' : ''}${f.sets.length ? f.sets.length + ' grupo' + (f.sets.length > 1 ? 's' : '') : ''} — la evolución diaria y las tablas de campañas, grupos y anuncios siguen el filtro; las tarjetas de arriba muestran toda la cuenta.${c.hierDaily && c.hierDaily.status === 'loading' ? ' Cargando evolución diaria filtrada…' : ''}${c.hierDaily && c.hierDaily.status === 'error' ? ' No se pudo traer la evolución diaria filtrada: ' + esc(c.hierDaily.message) : ''}</span>` : '';
   return `<div class="hier-filter"><span class="hf-label">Filtrar por</span>${hierComboHTML('camp', 'Campañas', 'todas', camps, f.camps)}${hierComboHTML('set', 'Grupos', 'todos', sets, f.sets)}${active ? `<button type="button" class="btn-link-sm" id="hfClear">Limpiar</button>` : ''}${note}</div>`;
 }
 function wireHierFilter(c) {
@@ -2772,8 +2772,7 @@ function chartsSectionHTML(c) {
   const adCols = hasH ? [['campaña', 'Campaña', 'col-camp'], ['grupo', 'Grupo', 'col-grupo']] : [];
 
   return `
-    <div class="exec-sub">Performance por campaña</div>
-    ${hierFilterBarHTML(c)}
+    <div class="exec-sub">Performance por campaña${hasH && hierFilterActive(c) ? ' <span class="hint">— filtrado (filtros arriba, sobre la evolución diaria)</span>' : ''}</div>
     <div class="chart-grid-2">
       <div class="chart-box">
         <div class="chart-title-row">
@@ -2991,14 +2990,14 @@ function keywordsTableHTML(kws) {
     return `<tr>
       <td>${esc(k.text)}</td>
       <td><span class="badge" style="background:var(--surface-2);color:var(--text-muted)">${MATCH_LABEL[k.match]}</span></td>
-      <td class="right">${fmtInt(k.impr)}</td>
-      <td class="right">${fmtInt(k.clicks)}</td>
-      <td class="right">${fmtPct(k.ctr)}</td>
-      <td class="right">${fmtMoney(k.cpc)}</td>
+      <td class="right col-impr">${fmtInt(k.impr)}</td>
+      <td class="right col-clicks">${fmtInt(k.clicks)}</td>
+      <td class="right col-ctr">${fmtPct(k.ctr)}</td>
+      <td class="right col-camp">${fmtMoney(k.cpc)}</td>
       <td class="right">${fmtMoney(k.spend)}</td>
-      <td class="right">${fmtInt(k.conv)}</td>
+      <td class="right col-conv">${fmtInt(k.conv)}</td>
       <td class="right">${k.costPerConv!=null?fmtMoney(k.costPerConv):'—'}</td>
-      <td class="right">${k.qs != null ? `<span class="badge" style="background:${qsColor}22;color:${qsColor}">${k.qs}/10</span>` : '<span class="muted-dash">—</span>'}</td>
+      <td class="right col-roas">${k.qs != null ? `<span class="badge" style="background:${qsColor}22;color:${qsColor}">${k.qs}/10</span>` : '<span class="muted-dash">—</span>'}</td>
     </tr>`;
   }).join('');
   const { kwSortKey: sk, kwSortDir: sd } = state;
@@ -3006,14 +3005,14 @@ function keywordsTableHTML(kws) {
     <thead><tr>
       ${sortTh('Keyword','text','',sk,sd)}
       ${sortTh('Concordancia','match','',sk,sd)}
-      ${sortTh('Impr.','impr','right',sk,sd)}
-      ${sortTh('Clics','clicks','right',sk,sd)}
-      ${sortTh('CTR','ctr','right',sk,sd)}
-      ${sortTh('CPC','cpc','right',sk,sd)}
+      ${sortTh('Impr.','impr','right col-impr',sk,sd)}
+      ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
+      ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
+      ${sortTh('CPC','cpc','right col-camp',sk,sd)}
       ${sortTh('Costo','spend','right',sk,sd)}
-      ${sortTh('Conv.','conv','right',sk,sd)}
+      ${sortTh('Conv.','conv','right col-conv',sk,sd)}
       ${sortTh('Costo/Conv','costPerConv','right',sk,sd)}
-      ${sortTh('Q. Score','qs','right',sk,sd)}
+      ${sortTh('Q. Score','qs','right col-roas',sk,sd)}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -3025,22 +3024,22 @@ function searchTermsTableHTML(sts) {
   const rows = sorted.map(s => `<tr class="${s.flagged?'st-flagged':''}">
       <td>${esc(s.text)}${s.flagged?'<span class="badge st-neg-badge" title="Gasta sin generar conversiones — candidato a negativa">Posible negativa</span>':''}</td>
       <td class="muted-cell">${esc(s.matchedKw)}</td>
-      <td class="right">${fmtInt(s.impr)}</td>
-      <td class="right">${fmtInt(s.clicks)}</td>
-      <td class="right">${fmtPct(s.ctr)}</td>
+      <td class="right col-impr">${fmtInt(s.impr)}</td>
+      <td class="right col-clicks">${fmtInt(s.clicks)}</td>
+      <td class="right col-ctr">${fmtPct(s.ctr)}</td>
       <td class="right">${fmtMoney(s.spend)}</td>
-      <td class="right">${fmtInt(s.conv)}</td>
+      <td class="right col-conv">${fmtInt(s.conv)}</td>
     </tr>`).join('');
   const { stSortKey: sk, stSortDir: sd } = state;
   return `<div class="table-wrap scroll-tbl" style="margin-top:0"><table class="compact" id="stTable">
     <thead><tr>
       ${sortTh('Término de búsqueda','text','',sk,sd)}
       ${sortTh('Keyword activada','matchedKw','',sk,sd)}
-      ${sortTh('Impr.','impr','right',sk,sd)}
-      ${sortTh('Clics','clicks','right',sk,sd)}
-      ${sortTh('CTR','ctr','right',sk,sd)}
+      ${sortTh('Impr.','impr','right col-impr',sk,sd)}
+      ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
+      ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
       ${sortTh('Costo','spend','right',sk,sd)}
-      ${sortTh('Conv.','conv','right',sk,sd)}
+      ${sortTh('Conv.','conv','right col-conv',sk,sd)}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -3601,6 +3600,7 @@ function renderCliente() {
     `<div class="exec-sub">Resumen ejecutivo · Performance</div><div class="exec-grid">${perf}</div>` +
     `<div class="exec-sub">Resumen ejecutivo · Conversión</div><div class="exec-grid conv-grid">${conv}</div>` +
     pacingWidgetHTML(c, 'meta') +
+    hierFilterBarHTML(c) +
     trendChartSectionHTML(c, 'meta') +
     `<div class="exec-sub">Embudo de conversión ${vsPrev}</div><div class="fnl">${funnelRows}</div>` +
     chartsSectionHTML(c);

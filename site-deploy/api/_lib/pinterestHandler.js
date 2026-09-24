@@ -39,7 +39,7 @@ function makeAccountHandler({ granularity }) {
   };
 }
 
-function makeEntityHandler({ entity, idField, nameColumn, extraColumns }) {
+function makeEntityHandler({ entity, idField, nameColumn, extraColumns, granularity }) {
   return async (req, res) => {
     const user = await verifySession(req);
     if (!user) return res.status(401).json({ error: 'No autenticado' });
@@ -57,7 +57,7 @@ function makeEntityHandler({ entity, idField, nameColumn, extraColumns }) {
       const qs = new URLSearchParams({
         start_date: since,
         end_date: until,
-        granularity: 'TOTAL',
+        granularity: granularity || 'TOTAL',
         columns: [nameColumn, ...BASE_COLUMNS, ...(extraColumns || [])].join(','),
         [`${idField}_ids`]: ids.join(',')
       });

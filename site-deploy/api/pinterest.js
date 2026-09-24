@@ -2,6 +2,7 @@ const routes = {
   totals: require('./_lib/pinterest/totals'),
   daily: require('./_lib/pinterest/daily'),
   campaigns: require('./_lib/pinterest/campaigns'),
+  campdaily: require('./_lib/pinterest/campdaily'),
   pins: require('./_lib/pinterest/pins'),
 };
 

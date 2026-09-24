@@ -3,6 +3,7 @@ const routes = {
   daily: require('./_lib/tiktok/daily'),
   campaigns: require('./_lib/tiktok/campaigns'),
   ads: require('./_lib/tiktok/ads'),
+  campdaily: require('./_lib/tiktok/campdaily'),
 };
 
 module.exports = (req, res) => {

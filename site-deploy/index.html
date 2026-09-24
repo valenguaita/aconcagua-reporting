@@ -1128,6 +1128,57 @@ async function fetchGoogleClient(authToken, customerId, since, until, prevSince,
   };
 }
 
+/* Detalle de Google (keywords, términos, dispositivos, cuota de impresiones): se pide recién al abrir la
+   pestaña de Google de ese cliente (no al cargar Cartera), para no gastar cuota de la API de Google. */
+const GOOGLE_MATCH = { EXACT: 'exacta', PHRASE: 'frase', BROAD: 'amplia' };
+const GOOGLE_DEVICE_LABEL = { MOBILE: 'Móvil', DESKTOP: 'Escritorio', TABLET: 'Tablet', CONNECTED_TV: 'TV conectada', OTHER: 'Otros' };
+function parseGoogleDetail(kwRows, stRows, devRows, shRows) {
+  const n = v => +v || 0;
+  const kwMap = {};
+  kwRows.forEach(r => {
+    const k = r.adGroupCriterion.keyword, m = r.metrics, key = k.text + '|' + k.matchType;
+    const g = kwMap[key] || (kwMap[key] = { text: k.text, match: GOOGLE_MATCH[k.matchType] || 'amplia', impr: 0, clicks: 0, spend: 0, conv: 0, qsNum: 0, qsDen: 0 });
+    g.impr += n(m.impressions); g.clicks += n(m.clicks); g.spend += n(m.costMicros) / 1e6; g.conv += n(m.conversions);
+    const qs = r.adGroupCriterion.qualityInfo && r.adGroupCriterion.qualityInfo.qualityScore;
+    if (qs) { g.qsNum += qs * n(m.impressions); g.qsDen += n(m.impressions); }
+  });
+  const keywords = Object.values(kwMap).map(g => {
+    const conv = Math.round(g.conv);
+    return { text: g.text, match: g.match, impr: g.impr, clicks: g.clicks, ctr: g.impr > 0 ? +(g.clicks/g.impr*100).toFixed(2) : 0, cpc: g.clicks > 0 ? Math.round(g.spend/g.clicks) : 0, spend: Math.round(g.spend), conv, costPerConv: conv > 0 ? Math.round(g.spend/conv) : null, qs: g.qsDen > 0 ? Math.round(g.qsNum/g.qsDen) : null };
+  });
+  const stMap = {};
+  stRows.forEach(r => {
+    const t = r.searchTermView.searchTerm, kw = (r.segments && r.segments.keyword && r.segments.keyword.info && r.segments.keyword.info.text) || '—', m = r.metrics, key = t + '|' + kw;
+    const g = stMap[key] || (stMap[key] = { text: t, matchedKw: kw, impr: 0, clicks: 0, spend: 0, conv: 0 });
+    g.impr += n(m.impressions); g.clicks += n(m.clicks); g.spend += n(m.costMicros) / 1e6; g.conv += n(m.conversions);
+  });
+  // "Posible negativa": ya juntó clics suficientes y no generó ninguna conversión.
+  const terms = Object.values(stMap).map(g => {
+    const conv = Math.round(g.conv);
+    return { text: g.text, matchedKw: g.matchedKw, impr: g.impr, clicks: g.clicks, ctr: g.impr > 0 ? +(g.clicks/g.impr*100).toFixed(2) : 0, spend: Math.round(g.spend), conv, flagged: g.conv < 0.5 && g.clicks >= 10 && g.spend > 0 };
+  });
+  const devMap = {};
+  devRows.forEach(r => { const l = GOOGLE_DEVICE_LABEL[r.segments.device] || 'Otros'; devMap[l] = (devMap[l] || 0) + n(r.metrics.clicks); });
+  const devices = Object.entries(devMap).map(([name, value]) => ({ name, value })).filter(d => d.value > 0).sort((a, b) => b.value - a.value);
+  const sm = (shRows[0] && shRows[0].metrics) || {}, pct = v => v == null ? null : Math.round(+v * 100);
+  const qsItems = keywords.filter(k => k.qs != null);
+  const qsW = qsItems.reduce((a, k) => a + k.impr, 0);
+  return {
+    keywords, terms, devices,
+    avgQs: qsW > 0 ? +(qsItems.reduce((a, k) => a + k.qs * k.impr, 0) / qsW).toFixed(1) : null,
+    share: { is: pct(sm.searchImpressionShare), lostBudget: pct(sm.searchBudgetLostImpressionShare), lostRank: pct(sm.searchRankLostImpressionShare) }
+  };
+}
+function loadGoogleDetail(c) {
+  if (c.googleDetail || !c.googleId || !c.googleRange || !state.session) return;
+  c.googleDetail = { status: 'loading' };
+  const tok = state.session.access_token, { since, until } = c.googleRange;
+  Promise.all(['keywords', 'searchterms', 'devices', 'share'].map(e => fetchGoogleRows(e, tok, c.googleId, since, until)))
+    .then(([kw, st, dv, sh]) => { c.googleDetail = { status: 'ok', ...parseGoogleDetail(kw, st, dv, sh) }; })
+    .catch(e => { c.googleDetail = { status: 'error', message: e.message }; })
+    .then(() => { if (state.view === 'cliente' && state.cliView === 'google' && state.cliClient === c.metaId) renderCliente(); });
+}
+
 async function buildClients(period) {
   const f = periodFactor(period);
   const scale = raw => raw ? { spend: Math.round(raw.spend*f), roas: raw.roas, conv: Math.round(raw.conv*f), impr: Math.round(raw.impr*f), clicks: Math.round(raw.clicks*f), trend: raw.trend.map(v => Math.round(v*f)) } : null;
@@ -1199,7 +1250,7 @@ async function buildClients(period) {
       const r = await googleP;
       if (r.g) { googleRaw = r.g.raw; googleLive = r.g.live; } else googleError = r.e.message;
     }
-    return { ...row, platforms: { meta: metaRaw, google: googleRaw, pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError, pinterestLive, pinterestError, googleLive, googleError };
+    return { ...row, platforms: { meta: metaRaw, google: googleRaw, pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError, pinterestLive, pinterestError, googleLive, googleError, googleRange: { since: sinceStr, until: untilStr } };
   }));
 }
 
@@ -2082,9 +2133,12 @@ function openPeriodPicker(prefix) {
   const now = new Date();
   let viewY = now.getFullYear(), viewM = now.getMonth();
   const isCustom = state.period === 'custom';
-  const from = isCustom ? (state.customFrom || null) : null, to = isCustom ? (state.customTo || null) : null;
-  if (from) { const d = new Date(from+'T00:00'); viewY = d.getFullYear(); viewM = d.getMonth(); }
-  drState = { prefix, viewY, viewM, from, to };
+  // Con un preset (Este mes, Últimos 7 días, etc.) se marca en el calendario el rango que representa.
+  const pd = currentPeriodDates();
+  const from = isCustom ? (state.customFrom || null) : ymd(pd.from), to = isCustom ? (state.customTo || null) : ymd(pd.to);
+  const focus = isCustom ? from : to;
+  if (focus) { const d = new Date(focus+'T00:00'); viewY = d.getFullYear(); viewM = d.getMonth(); }
+  drState = { prefix, viewY, viewM, from, to, presetMode: !isCustom };
   renderPeriodPopover();
   const pop = document.getElementById(prefix+'PeriodPop');
   pop.style.left = ''; pop.style.right = '';
@@ -2131,7 +2185,7 @@ function renderPeriodPopover() {
     <div class="dr-cal-grid">${dayCellsHTML}</div>
     <div class="dr-cal-footer">
       <span class="dr-range-label">${rangeLabel}</span>
-      <button type="button" class="btn btn-primary btn-sm dr-apply" ${from&&to?'':'disabled'}>Aplicar</button>
+      <button type="button" class="btn btn-primary btn-sm dr-apply" ${from&&to&&!drState.presetMode?'':'disabled'}>Aplicar</button>
     </div>`;
   pop.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => { cliChangePeriod(b.dataset.preset); closeAllPeriodPickers(); }));
   pop.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => {
@@ -2141,7 +2195,8 @@ function renderPeriodPopover() {
   }));
   pop.querySelectorAll('[data-day]').forEach(el => el.addEventListener('click', () => {
     const ds = el.dataset.day;
-    if (!drState.from || drState.to) { drState.from = ds; drState.to = null; }
+    if (drState.presetMode) { drState.presetMode = false; drState.from = ds; drState.to = null; }
+    else if (!drState.from || drState.to) { drState.from = ds; drState.to = null; }
     else if (ds < drState.from) { drState.to = drState.from; drState.from = ds; }
     else { drState.to = ds; }
     const d = new Date(ds+'T00:00'); drState.viewY = d.getFullYear(); drState.viewM = d.getMonth();
@@ -2283,8 +2338,12 @@ function currentPeriodDates() {
   if (state.period === 'custom' && state.customFrom && state.customTo) {
     return { from: clone(new Date(state.customFrom+'T00:00')), to: clone(new Date(state.customTo+'T00:00')) };
   }
-  if (state.period === 'last_7d') { const to = clone(now), from = clone(now); from.setDate(from.getDate()-6); return { from, to }; }
-  if (state.period === 'last_30d') { const to = clone(now), from = clone(now); from.setDate(from.getDate()-29); return { from, to }; }
+  // "Últimos N días" termina AYER (último día completo): hoy todavía está a medias.
+  if (state.period === 'last_7d' || state.period === 'last_30d') {
+    const to = clone(now); to.setDate(to.getDate()-1);
+    const from = clone(to); from.setDate(from.getDate() - (state.period === 'last_7d' ? 6 : 29));
+    return { from, to };
+  }
   if (state.period === 'last_month') { return { from: new Date(now.getFullYear(), now.getMonth()-1, 1), to: new Date(now.getFullYear(), now.getMonth(), 0) }; }
   return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: clone(now) };
 }
@@ -2750,25 +2809,49 @@ function googleLiveSectionHTML(c, R, L) {
     return `<option value="${k}" ${gMetric===k?'selected':''} ${disabled?'disabled':''}>${v.label}</option>`;
   }).join('');
 
+  const D = c.googleDetail, dOk = !!(D && D.status === 'ok');
+  const loadingBox = what => `<div class="empty-ok">${D && D.status === 'error' ? `No se pudo traer ${what}: ${esc(D.message)}` : `Cargando ${what}…`}</div>`;
+  const pctOrDash = v => v != null ? v + '%' : '—';
+  const searchKpis = dOk ? `<div class="exec-sub">Resumen · Búsqueda</div><div class="exec-grid conv-grid">${[
+    execCard('Impr. Share (búsq.)', pctOrDash(D.share.is), 'cuota de impresiones', '', null, null),
+    execCard('Quality Score prom.', D.avgQs != null ? D.avgQs + '/10' : '—', D.avgQs != null && D.avgQs < 6 ? 'revisar calidad' : 'ponderado por impresiones', D.avgQs != null && D.avgQs < 6 ? 'amber' : '', null, null),
+    execCard('Lost IS (presupuesto)', pctOrDash(D.share.lostBudget), 'impresiones perdidas por presupuesto', (D.share.lostBudget || 0) >= 10 ? 'red' : '', null, null),
+    execCard('Lost IS (ranking)', pctOrDash(D.share.lostRank), 'impresiones perdidas por ranking del anuncio', (D.share.lostRank || 0) >= 15 ? 'amber' : '', null, null)
+  ].join('')}</div>` : '';
+  const devBox = dOk ? (D.devices.length ? donutChartSVG(D.devices, { fmt: fmtInt }) : `<div class="empty-ok">Sin datos de dispositivos.</div>`) : loadingBox('dispositivos');
+  const flagged = dOk ? D.terms.filter(x => x.flagged) : [];
+  const flaggedSpend = flagged.reduce((a, x) => a + x.spend, 0);
+  const insight = flagged.length ? `<div class="insight-banner warn"><b>${flagged.length} término${flagged.length>1?'s':''} de búsqueda</b> ${flagged.length>1?'juntaron':'juntó'} clics y gasto sin ninguna conversión — ${flagged.length>1?'representan':'representa'} ${fmtMoney(flaggedSpend)}. Candidatos a agregar como negativa.</div>` : '';
+  const kwSection = dOk
+    ? `<div class="exec-sub">Informe de Keywords <span class="hint">— ${D.keywords.length} keywords, tocá una columna para ordenar</span></div>${keywordsTableHTML(D.keywords)}`
+    : `<div class="exec-sub">Informe de Keywords</div>${loadingBox('keywords')}`;
+  const stSection = dOk
+    ? `<div class="exec-sub">Informe de Search Terms <span class="hint">— ${D.terms.length} términos, tocá una columna para ordenar</span></div>${insight}${searchTermsTableHTML(D.terms)}`
+    : `<div class="exec-sub">Informe de Search Terms</div>${loadingBox('términos de búsqueda')}`;
+
   return `
     <div class="exec-sub">Resumen · Google Ads</div>
     <div class="exec-grid">${kpis}</div>
+    ${searchKpis}
     ${pacingWidgetHTML(c, 'google')}
     ${trendChartSectionHTML(c, 'google')}
     <div class="exec-sub">Performance por campaña</div>
-    <div class="chart-grid-2">
-      <div class="chart-box">
-        <div class="chart-title-row">
-          <div class="chart-title">${gMode==='chart' ? `${gm.label} por campaña` : 'Campañas'}</div>
-          <div class="chart-title-actions">
-            ${gMode==='chart'?`<select class="select select-sm" id="gCampMetricSel">${gOpts}</select>`:''}
-            ${viewToggleLink('gCamp')}
-          </div>
+    <div class="chart-box chart-box-wide">
+      <div class="chart-title-row">
+        <div class="chart-title">${gMode==='chart' ? `${gm.label} por campaña` : 'Campañas'}</div>
+        <div class="chart-title-actions">
+          ${gMode==='chart'?`<select class="select select-sm" id="gCampMetricSel">${gOpts}</select>`:''}
+          ${viewToggleLink('gCamp')}
         </div>
-        ${gMode==='chart' ? gChart : metricTableHTML(L.campaigns, 'gCampTable', leads, [['tipo', 'Tipo', 'col-camp']])}
       </div>
+      ${gMode==='chart' ? gChart : metricTableHTML(L.campaigns, 'gCampTable', leads, [['tipo', 'Tipo', 'col-camp']])}
+    </div>
+    <div class="chart-grid-2">
       <div class="chart-box"><div class="chart-title">Mezcla por tipo de campaña</div>${typeDonut}</div>
-    </div>`;
+      <div class="chart-box"><div class="chart-title">Dispositivo <span class="hint">— clics</span></div>${devBox}</div>
+    </div>
+    ${kwSection}
+    ${stSection}`;
 }
 function googleAdsSectionHTML(c) {
   const R = c.platforms.google;
@@ -2875,7 +2958,7 @@ function keywordsTableHTML(kws) {
       <td class="right">${fmtMoney(k.spend)}</td>
       <td class="right">${fmtInt(k.conv)}</td>
       <td class="right">${k.costPerConv!=null?fmtMoney(k.costPerConv):'—'}</td>
-      <td class="right"><span class="badge" style="background:${qsColor}22;color:${qsColor}">${k.qs}/10</span></td>
+      <td class="right">${k.qs != null ? `<span class="badge" style="background:${qsColor}22;color:${qsColor}">${k.qs}/10</span>` : '<span class="muted-dash">—</span>'}</td>
     </tr>`;
   }).join('');
   const { kwSortKey: sk, kwSortDir: sd } = state;
@@ -3364,6 +3447,7 @@ function renderCliente() {
     wire(); return;
   }
   if (state.cliView === 'google') {
+    if (c.googleLive) loadGoogleDetail(c);
     host.innerHTML = head + googleAdsSectionHTML(c);
     wire(); return;
   }

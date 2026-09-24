@@ -395,7 +395,12 @@
   table.compact th.col-conv { color: var(--green); }
   table.compact th.col-roas, table.compact td.col-roas { background: rgba(168,130,255,.11); }
   table.compact th.col-roas { color: #C0A6FF; }
-  table.compact tfoot td.col-impr, table.compact tfoot td.col-clicks, table.compact tfoot td.col-ctr, table.compact tfoot td.col-conv, table.compact tfoot td.col-roas { background: var(--surface-2); }
+  table.compact tfoot td.col-impr, table.compact tfoot td.col-clicks, table.compact tfoot td.col-ctr, table.compact tfoot td.col-conv, table.compact tfoot td.col-roas, table.compact tfoot td.col-camp, table.compact tfoot td.col-grupo { background: var(--surface-2); }
+  table.compact th.col-camp, table.compact td.col-camp { background: rgba(63,200,192,.08); border-left: 1px solid var(--border-strong); }
+  table.compact th.col-camp { color: #7FDAD4; }
+  table.compact th.col-grupo, table.compact td.col-grupo { background: rgba(229,143,180,.09); border-left: 1px solid var(--border-strong); }
+  table.compact th.col-grupo { color: #EDA6C4; }
+  table.compact td.mtbl-name:first-child { font-weight: 600; }
   .chart-title-row .chart-title { margin-bottom: 0; }
   .select-sm { min-height: 30px; padding: 4px 9px; font-size: 12px; min-width: auto; }
   .chart-box > :last-child { flex: 1; display: flex; align-items: center; justify-content: center; }
@@ -2452,7 +2457,7 @@ function metricTableHTML(items, tableId, leads, extraCols) {
   const sorted = sortRows(withCpa, sk, sd, ['name', ...extraCols.map(x => x[0])]);
   const rows = sorted.map(it => `<tr>
       <td class="mtbl-name" title="${esc(it.name)}">${esc(it.name)}</td>
-      ${extraCols.map(([k]) => `<td class="mtbl-name" title="${esc(it[k] || '')}">${esc(it[k] || '—')}</td>`).join('')}
+      ${extraCols.map(([k,, cls]) => `<td class="mtbl-name ${cls || ''}" title="${esc(it[k] || '')}">${esc(it[k] || '—')}</td>`).join('')}
       <td class="right col-impr">${fmtInt(it.impr)}</td>
       <td class="right col-clicks">${fmtInt(it.clicks)}</td>
       <td class="right col-ctr">${it.ctr!=null?fmtPct(it.ctr):'—'}</td>
@@ -2471,7 +2476,7 @@ function metricTableHTML(items, tableId, leads, extraCols) {
   return `<div class="table-wrap scroll-tbl" style="margin-top:0"><table class="compact" id="${tableId}">
     <thead><tr>
       ${sortTh('Nombre','name','mtbl-name',sk,sd)}
-      ${extraCols.map(([k, label]) => sortTh(label, k, 'mtbl-name', sk, sd)).join('')}
+      ${extraCols.map(([k, label, cls]) => sortTh(label, k, 'mtbl-name ' + (cls || ''), sk, sd)).join('')}
       ${sortTh('Impr.','impr','right col-impr',sk,sd)}
       ${sortTh('Clics','clicks','right col-clicks',sk,sd)}
       ${sortTh('CTR','ctr','right col-ctr',sk,sd)}
@@ -2482,7 +2487,7 @@ function metricTableHTML(items, tableId, leads, extraCols) {
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr class="tbl-total-row">
-      <td>Total</td>${extraCols.map(() => '<td></td>').join('')}
+      <td>Total</td>${extraCols.map(([,, cls]) => `<td class="${cls || ''}"></td>`).join('')}
       <td class="right col-impr">${fmtInt(totals.impr)}</td>
       <td class="right col-clicks">${fmtInt(totals.clicks)}</td>
       <td class="right col-ctr">${totalCtr!=null?fmtPct(totalCtr):'—'}</td>
@@ -2617,8 +2622,8 @@ function chartsSectionHTML(c) {
   const adsetMode = state.chartViewMode.adset || 'table';
   const adMode = state.chartViewMode.ad || 'table';
   const hasH = !!c.metaLiveHierarchy;
-  const adsetCols = hasH ? [['campaña', 'Campaña']] : [];
-  const adCols = hasH ? [['campaña', 'Campaña'], ['grupo', 'Grupo']] : [];
+  const adsetCols = hasH ? [['campaña', 'Campaña', 'col-camp']] : [];
+  const adCols = hasH ? [['campaña', 'Campaña', 'col-camp'], ['grupo', 'Grupo', 'col-grupo']] : [];
 
   return `
     <div class="exec-sub">Performance por campaña</div>

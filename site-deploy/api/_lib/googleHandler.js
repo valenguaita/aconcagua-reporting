@@ -67,4 +67,4 @@ function makeGoogleHandler(buildQuery) {
   };
 }
 
-module.exports = { makeGoogleHandler, METRICS };
+module.exports = { makeGoogleHandler, METRICS, getAccessToken };

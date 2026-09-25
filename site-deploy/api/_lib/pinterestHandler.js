@@ -1,11 +1,12 @@
 const { verifySession, isValidAccountId, isValidDate } = require('./verifySession');
+const { getPinterestToken } = require('./pinterestToken');
 
 const PINTEREST_API = 'https://api.pinterest.com/v5';
 
-async function pinterestGet(path) {
-  const res = await fetch(`${PINTEREST_API}${path}`, {
-    headers: { Authorization: `Bearer ${process.env.PINTEREST_ACCESS_TOKEN}` }
-  });
+async function pinterestGet(path, retried) {
+  const token = await getPinterestToken({ force: !!retried });
+  const res = await fetch(`${PINTEREST_API}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 401 && !retried) return pinterestGet(path, true);
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || 'Error de la API de Pinterest');
   return json;

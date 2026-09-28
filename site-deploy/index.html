@@ -1252,11 +1252,12 @@ function renderEquipo() {
     const isForbidden = /administradores/i.test(T.message);
     body = `<div class="fnl" style="text-align:center;color:${isForbidden ? 'var(--text-faint)' : 'var(--red)'}">${isForbidden ? esc(T.message) : 'No se pudo cargar el equipo: ' + esc(T.message)}</div>`;
   } else {
-    const adminCell = u => {
-      if (u.isSeedAdmin) return `<span class="badge" style="background:rgba(168,130,255,.14);color:#C0A6FF">Administrador</span>`;
-      if (u.isAdmin) return `<span class="badge" style="background:rgba(168,130,255,.14);color:#C0A6FF">Administrador</span> <button class="btn-link-sm" data-demote="${esc(u.id)}">Quitar admin</button>`;
-      return `<button class="btn-link-sm" data-promote="${esc(u.id)}" data-email="${esc(u.email)}">Hacer admin</button>`;
-    };
+    const adminCell = u => u.isSeedAdmin
+      ? `<select class="select select-sm" disabled title="Administrador fijo — se cambia en Vercel, no acá"><option selected>Administrador</option></select>`
+      : `<select class="select select-sm" data-role-select="${esc(u.id)}" data-email="${esc(u.email)}">
+          <option value="member" ${!u.isAdmin ? 'selected' : ''}>Miembro</option>
+          <option value="admin" ${u.isAdmin ? 'selected' : ''}>Administrador</option>
+        </select>`;
     const rows = T.users.map(u => `<tr>
         <td>${esc(u.email)}</td>
         <td>${u.confirmed ? `<span class="badge" style="background:rgba(0,234,189,.12);color:var(--green)">Confirmado</span>` : `<span class="badge" style="background:rgba(242,180,65,.12);color:var(--yellow)">Invitado, pendiente</span>`}</td>
@@ -1296,14 +1297,15 @@ function renderEquipo() {
     try { await apiTeam('remove', { id: b.dataset.remove }); toast('Acceso eliminado'); state.team = { status: 'idle' }; renderEquipo(); }
     catch (e) { toast('Error: ' + e.message); }
   }));
-  host.querySelectorAll('[data-promote]').forEach(b => b.addEventListener('click', async () => {
-    try { await apiTeam('promote', { id: b.dataset.promote, email: b.dataset.email }); toast('Ahora es administrador'); state.team = { status: 'idle' }; renderEquipo(); }
-    catch (e) { toast('Error: ' + e.message); }
-  }));
-  host.querySelectorAll('[data-demote]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('¿Sacarle el rol de administrador? Va a seguir teniendo acceso normal.')) return;
-    try { await apiTeam('demote', { id: b.dataset.demote }); toast('Ya no es administrador'); state.team = { status: 'idle' }; renderEquipo(); }
-    catch (e) { toast('Error: ' + e.message); }
+  host.querySelectorAll('[data-role-select]').forEach(sel => sel.addEventListener('change', async () => {
+    const id = sel.dataset.roleSelect, email = sel.dataset.email, makeAdmin = sel.value === 'admin';
+    if (!makeAdmin && !confirm('¿Sacarle el rol de administrador? Va a seguir teniendo acceso normal.')) { sel.value = 'admin'; return; }
+    sel.disabled = true;
+    try {
+      await apiTeam(makeAdmin ? 'promote' : 'demote', { id, email });
+      toast(makeAdmin ? 'Ahora es administrador' : 'Ya no es administrador');
+      state.team = { status: 'idle' }; renderEquipo();
+    } catch (e) { toast('Error: ' + e.message); sel.value = makeAdmin ? 'member' : 'admin'; sel.disabled = false; }
   }));
 }
 

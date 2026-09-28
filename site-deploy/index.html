@@ -1252,15 +1252,21 @@ function renderEquipo() {
     const isForbidden = /administradores/i.test(T.message);
     body = `<div class="fnl" style="text-align:center;color:${isForbidden ? 'var(--text-faint)' : 'var(--red)'}">${isForbidden ? esc(T.message) : 'No se pudo cargar el equipo: ' + esc(T.message)}</div>`;
   } else {
+    const adminCell = u => {
+      if (u.isSeedAdmin) return `<span class="badge" style="background:rgba(168,130,255,.14);color:#C0A6FF">Administrador</span>`;
+      if (u.isAdmin) return `<span class="badge" style="background:rgba(168,130,255,.14);color:#C0A6FF">Administrador</span> <button class="btn-link-sm" data-demote="${esc(u.id)}">Quitar admin</button>`;
+      return `<button class="btn-link-sm" data-promote="${esc(u.id)}" data-email="${esc(u.email)}">Hacer admin</button>`;
+    };
     const rows = T.users.map(u => `<tr>
         <td>${esc(u.email)}</td>
         <td>${u.confirmed ? `<span class="badge" style="background:rgba(0,234,189,.12);color:var(--green)">Confirmado</span>` : `<span class="badge" style="background:rgba(242,180,65,.12);color:var(--yellow)">Invitado, pendiente</span>`}</td>
         <td>${fmtDateTime(u.lastSignIn)}</td>
+        <td>${adminCell(u)}</td>
         <td class="right"><button class="btn-link-sm" data-remove="${esc(u.id)}" style="color:var(--red)">Quitar acceso</button></td>
       </tr>`).join('');
     body = `<div class="table-wrap"><table class="compact">
-      <thead><tr><th>Mail</th><th>Estado</th><th>Último ingreso</th><th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="4" class="empty-ok">Sin usuarios todavía.</td></tr>`}</tbody>
+      <thead><tr><th>Mail</th><th>Estado</th><th>Último ingreso</th><th>Admin</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" class="empty-ok">Sin usuarios todavía.</td></tr>`}</tbody>
     </table></div>`;
   }
   host.innerHTML = `
@@ -1288,6 +1294,15 @@ function renderEquipo() {
   host.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('¿Sacarle el acceso a este usuario? No va a poder volver a entrar hasta que lo vuelvas a invitar.')) return;
     try { await apiTeam('remove', { id: b.dataset.remove }); toast('Acceso eliminado'); state.team = { status: 'idle' }; renderEquipo(); }
+    catch (e) { toast('Error: ' + e.message); }
+  }));
+  host.querySelectorAll('[data-promote]').forEach(b => b.addEventListener('click', async () => {
+    try { await apiTeam('promote', { id: b.dataset.promote, email: b.dataset.email }); toast('Ahora es administrador'); state.team = { status: 'idle' }; renderEquipo(); }
+    catch (e) { toast('Error: ' + e.message); }
+  }));
+  host.querySelectorAll('[data-demote]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('¿Sacarle el rol de administrador? Va a seguir teniendo acceso normal.')) return;
+    try { await apiTeam('demote', { id: b.dataset.demote }); toast('Ya no es administrador'); state.team = { status: 'idle' }; renderEquipo(); }
     catch (e) { toast('Error: ' + e.message); }
   }));
 }

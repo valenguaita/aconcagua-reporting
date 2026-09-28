@@ -687,7 +687,14 @@ const MOCK_PLANNED_BUDGET = {
   '777': { meta: 555000, google: 260000 }
 };
 const PLATFORM_LABEL = { meta: 'Meta', google: 'Google Ads', pinterest: 'Pinterest', tiktok: 'TikTok Ads' };
-const LS_GLOBAL = 'aconcagua_global_th', LS_CLIENT = 'aconcagua_client_th';
+const LS_GLOBAL = 'aconcagua_global_th', LS_CLIENT = 'aconcagua_client_th', LS_LASTVIEW = 'aconcagua_lastview';
+// Recuerda en qué pantalla estabas (vista, cliente, plataforma, ventas/leads) para volver ahí al refrescar.
+function saveLastView() {
+  try { localStorage.setItem(LS_LASTVIEW, JSON.stringify({ view: state.view, cliClient: state.cliClient, cliView: state.cliView, cliObjetivo: state.cliObjetivo })); } catch (e) {}
+}
+function loadLastView() {
+  try { return JSON.parse(localStorage.getItem(LS_LASTVIEW) || 'null'); } catch (e) { return null; }
+}
 const state = {
   period: 'this_month', customFrom: '', customTo: '', platform: 'todos', clients: [],
   sortKey: 'spend', sortDir: 'desc',
@@ -1937,6 +1944,7 @@ function switchView(v) {
   if (v === 'cliente') renderCliente();
   if (v === 'novedades') renderNovedades();
   if (v === 'creatividades') renderCreatividades();
+  saveLastView();
 }
 
 /* ===== NOVEDADES META (demo: mock — pendiente de conectar fuente real, ver nota en la UI) ===== */
@@ -3489,14 +3497,16 @@ function renderCliSelList(clientList, query) {
   listEl.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
     const picked = state.clients.find(x => x.metaId === b.dataset.id);
     if (picked) state.cliObjetivo = isLeads(picked) ? 'leads' : 'ventas';
-    state.cliClient = b.dataset.id; closeCliSelPop(); renderCliente();
+    state.cliClient = b.dataset.id; closeCliSelPop(); renderCliente(); saveLastView();
   }));
 }
 function renderCliente() {
   const host = document.getElementById('viewCliente');
   if (!state.cliObjetivo) state.cliObjetivo = 'ventas';
   const matchesObj = x => (state.cliObjetivo === 'leads') === isLeads(x);
-  if (!state.cliClient || !state.clients.find(x => x.metaId === state.cliClient && matchesObj(x))) {
+  // Si los clientes todavía no cargaron (arranque de la app), no se pisa el cliente restaurado del
+  // último refresh — recién se valida/reemplaza cuando ya hay datos para chequear contra qué.
+  if (!state.cliClient || (state.clients.length > 0 && !state.clients.find(x => x.metaId === state.cliClient && matchesObj(x)))) {
     const first = state.clients.find(x => x.status === 'Activo' && matchesObj(x)) || state.clients.find(matchesObj);
     state.cliClient = first ? first.metaId : null;
   }
@@ -3541,11 +3551,11 @@ function renderCliente() {
   const wire = () => {
     document.querySelectorAll('#cliObjSeg button').forEach(b => b.addEventListener('click', () => {
       if (state.cliObjetivo === b.dataset.obj) return;
-      state.cliObjetivo = b.dataset.obj; state.cliClient = null; renderCliente();
+      state.cliObjetivo = b.dataset.obj; state.cliClient = null; renderCliente(); saveLastView();
     }));
     document.querySelectorAll('#cliViewSeg button').forEach(b => b.addEventListener('click', () => {
       if (state.cliView === b.dataset.view) return;
-      state.cliView = b.dataset.view; renderCliente();
+      state.cliView = b.dataset.view; renderCliente(); saveLastView();
     }));
     const comboBtn = document.getElementById('cliSelBtn');
     const comboPop = document.getElementById('cliSelPop');
@@ -3888,7 +3898,9 @@ async function startApp(demo) {
   document.getElementById('demoBadge').style.display = demo ? 'inline-block' : 'none';
   document.getElementById('btnLogout').style.display = demo ? 'none' : 'flex';
   updatePeriodTrigger('main');
-  switchView('dashboard');
+  const last = loadLastView();
+  if (last) { state.cliClient = last.cliClient; state.cliView = last.cliView; state.cliObjetivo = last.cliObjetivo; }
+  switchView((last && last.view) || 'dashboard');
   loadData(true);
   subscribeRealtime();
 }

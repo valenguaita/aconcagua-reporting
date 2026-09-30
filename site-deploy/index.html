@@ -1512,20 +1512,21 @@ function cpaStatus(cpa, target) { if (!target || target <= 0 || cpa == null) ret
 function ctrStatus(ctr, min) { if (ctr == null) return 'na'; if (ctr >= min) return 'good'; if (ctr >= 0.8*min) return 'warn'; return 'bad'; }
 function statColor(s) { return s === 'good' ? 'var(--green)' : s === 'warn' ? 'var(--yellow)' : s === 'bad' ? 'var(--red)' : 'var(--text)'; }
 function pacingWidgetHTML(c, platform) {
+  // El pacing es "¿vamos bien encaminados con el gasto de ESTE mes" — solo tiene sentido
+  // mirando el mes en curso, no cuando el usuario está viendo otro período (últimos 7 días,
+  // mes anterior, etc.), donde el gasto mostrado no representa lo acumulado del mes actual.
+  if (state.period !== 'this_month') return '';
   const planned = platformBudget(c, platform);
   if (!planned || planned <= 0) return '';
-  const raw = (MOCK_PLATFORMS[c.metaId] || {})[platform];
+  const raw = c.platforms[platform];
   const spendToDate = raw ? raw.spend : 0;
   if (spendToDate <= 0) return '';
-  // "this_month" en el mock representa un mes parcial — su fracción respecto a un mes completo
-  // ya está definida por PERIOD_FACTOR (this_month vs last_month), así que reusamos esa relación
-  // en vez de asumir el día calendario real, que no está calibrado contra estos montos.
-  const elapsedFrac = PERIOD_FACTOR.this_month / PERIOD_FACTOR.last_month;
+  const now = new Date();
+  const elapsedFrac = now.getDate() / new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
   const pct = Math.round(spendToDate/planned*100);
   const expectedPct = Math.round(elapsedFrac*100);
   const projected = Math.round(spendToDate/elapsedFrac);
   const projectedPct = Math.round(projected/planned*100);
-  const now = new Date();
   let statusLabel, statusColor;
   if (projectedPct >= 90 && projectedPct <= 110) { statusLabel = 'en línea con el plan'; statusColor = 'var(--green)'; }
   else if (projectedPct < 90) { statusLabel = 'por debajo del plan'; statusColor = 'var(--yellow)'; }

@@ -360,6 +360,13 @@
   .exec-card .v { font-size: 23px; font-weight: 800; margin-top: 8px; letter-spacing: -.4px; }
   .exec-card .s { font-size: 11.5px; color: var(--text-faint); margin-top: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
   .exec-card.green { border-top-color: var(--green); } .exec-card.blue { border-top-color: var(--meta); } .exec-card.amber { border-top-color: var(--google); } .exec-card.red { border-top-color: var(--red); } .exec-card.purple { border-top-color: #A88AFF; }
+  .mini-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  @media (max-width: 1100px) { .mini-grid { grid-template-columns: repeat(3, 1fr); } }
+  .mini-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; border-top: 2px solid var(--accent); }
+  .mini-card .l { font-size: 9.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-card .v { font-size: 15px; font-weight: 800; margin-top: 3px; letter-spacing: -.2px; }
+  .mini-card .s { font-size: 10px; color: var(--text-faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-card.green { border-top-color: var(--green); } .mini-card.amber { border-top-color: var(--google); }
   .fnl { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow-sm); }
   .fnl-stage { margin-bottom: 2px; }
   .fnl-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
@@ -3439,7 +3446,9 @@ function weightedRetention(videos) {
   videos.forEach(v => { const r = v.retention; if (!r) return; Object.keys(sum).forEach(k => { sum[k] += r[k] || 0; }); });
   return sum;
 }
-function videoRetentionChartSVG(selected, avg) {
+// Tooltip al pasar el mouse: reusa el mecanismo ya armado para las líneas de tendencia (svg[data-sp] +
+// #sparkTip, ver más abajo) — un solo punto por checkpoint, con el % y el conteo de las dos líneas.
+function videoRetentionChartSVG(selected, avg, avgCount) {
   const selPts = retentionPct(selected), avgPts = retentionPct(avg);
   const VB_W = 680, VB_H = 240, padL = 34, padR = 10, padT = 14, padB = 26, plotW = VB_W-padL-padR, plotH = VB_H-padT-padB;
   const n = selPts.length;
@@ -3451,37 +3460,42 @@ function videoRetentionChartSVG(selected, avg) {
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(padL+plotW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" opacity="${pct===0?0.9:0.4}"/><text x="${(padL-8).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${pct}%</text>`; }).join('');
   const xlabels = selPts.map((p,i) => `<text x="${xFor(i).toFixed(1)}" y="${VB_H-8}" text-anchor="middle" font-size="10" fill="var(--text-faint)">${esc(p.label)}</text>`).join('');
   const dots = selPts.map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.pct).toFixed(1)}" r="3" fill="#25F4EE"/>`).join('');
-  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" style="width:100%;height:auto">${grid}<path d="${avgLine}" fill="none" stroke="var(--text-faint)" stroke-width="1.6" stroke-dasharray="5 4"/><path d="${selLine}" fill="none" stroke="#25F4EE" stroke-width="2.4"/>${dots}${xlabels}</svg>`;
+  // El "segundo" solo tiene sentido en los checkpoints de tiempo (2s/6s); en los de % de duración se
+  // aclara igual el checkpoint, para que quede claro a qué punto del video corresponde cada dato.
+  const secLabel = { 'Inicio':'al arrancar', '2s':'a los 2 segundos', '6s':'a los 6 segundos', '25%':'al 25% del video', '50%':'a la mitad del video', '75%':'al 75% del video', '100%':'al terminar el video' };
+  const spPts = selPts.map((p,i) => ({
+    x: +xFor(i).toFixed(1), y: +yFor(p.pct).toFixed(1),
+    t: `${secLabel[p.label] || p.label}: este video ${p.pct.toFixed(1)}% (${fmtInt(Math.round(selected.plays*p.pct/100))} de ${fmtInt(selected.plays)}) · promedio ${avgPts[i].pct.toFixed(1)}% (${fmtInt(avgCount)} videos)`
+  }));
+  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" style="width:100%;height:auto" data-sp="${esc(JSON.stringify(spPts))}"><rect width="${VB_W}" height="${VB_H}" fill="transparent"/>${grid}<path d="${avgLine}" fill="none" stroke="var(--text-faint)" stroke-width="1.6" stroke-dasharray="5 4"/><path d="${selLine}" fill="none" stroke="#25F4EE" stroke-width="2.4"/>${dots}<circle class="sp-dot" r="4" fill="#25F4EE" stroke="var(--surface)" stroke-width="1.5" style="display:none"/>${xlabels}</svg>`;
 }
-function retentionStatCard(label, selPct, avgPct, extra) {
-  const diff = Math.round((selPct - avgPct) * 10) / 10;
-  const col = Math.abs(diff) < 0.5 ? 'var(--text-faint)' : (diff > 0 ? 'var(--green)' : 'var(--red)');
-  return `<div class="exec-card"><div class="l">${esc(label)}</div><div class="v-row"><div class="v num">${fmtPct(selPct)}</div></div><div class="s" style="color:${col}">${diff>0?'+':''}${diff} pts vs. promedio${extra ? ' · ' + extra : ''}</div></div>`;
-}
-function videoRetentionSectionHTML(c, videosAgg) {
-  if (!videosAgg.length) return `<div class="exec-sub">Retención de video</div><div class="empty-ok">Sin videos con gasto en este período.</div>`;
-  if (!state.ttRetentionVideo || !videosAgg.find(v => v.name === state.ttRetentionVideo)) state.ttRetentionVideo = videosAgg[0].name;
-  const selected = videosAgg.find(v => v.name === state.ttRetentionVideo) || videosAgg[0];
-  const avg = weightedRetention(videosAgg);
-  const selPts = retentionPct(selected.retention), avgPts = retentionPct(avg);
-  const at = key => selPts.find(p => p.label === key).pct, atAvg = key => avgPts.find(p => p.label === key).pct;
-  const opts = videosAgg.map(v => `<option value="${esc(v.name)}" ${v.name===selected.name?'selected':''}>${esc(v.name)}</option>`).join('');
+function videoRetentionSectionHTML(c, allVideos, leadsT) {
+  const videos = allVideos.filter(v => v.retention && v.retention.plays > 0);
+  if (!videos.length) return `<div class="exec-sub">Retención de video</div><div class="empty-ok">Sin videos con reproducciones en este período.</div>`;
+  if (!state.ttRetentionVideo || !videos.find(v => v.name === state.ttRetentionVideo)) state.ttRetentionVideo = videos[0].name;
+  const selected = videos.find(v => v.name === state.ttRetentionVideo) || videos[0];
+  const avg = weightedRetention(videos);
+  const opts = videos.map(v => `<option value="${esc(v.name)}" ${v.name===selected.name?'selected':''}>${esc(v.name)}</option>`).join('');
+  const mini = (label, val, sub, cls) => `<div class="mini-card ${cls||''}"><div class="l" title="${esc(label)}">${esc(label)}</div><div class="v">${val}</div>${sub?`<div class="s">${sub}</div>`:''}</div>`;
+  const cpa = selected.conv > 0 ? selected.spend / selected.conv : null;
   const cards = [
-    retentionStatCard('Hook (2s)', at('2s'), atAvg('2s')),
-    retentionStatCard('Hold (6s)', at('6s'), atAvg('6s')),
-    retentionStatCard('Completado (100%)', at('100%'), atAvg('100%')),
-    `<div class="exec-card"><div class="l">Tiempo prom. de reproducción</div><div class="v-row"><div class="v num">${(selected.retention.avgPlay||0).toFixed(1)}s</div></div><div class="s">Reproducciones: ${fmtInt(selected.retention.plays)}</div></div>`
+    mini('Gasto', fmtMoney(selected.spend), null, ''),
+    mini(leadsT ? 'Leads' : 'Ventas', leadsT ? fmtInt(selected.conv) : fmtMoney(selected.roas!=null?Math.round(selected.spend*selected.roas):0), null, 'green'),
+    mini(leadsT ? 'Costo/Lead' : 'ROAS', leadsT ? (cpa!=null?fmtMoney(cpa):'—') : (selected.roas!=null?fmtRoas(selected.roas):'—'), null, 'amber'),
+    mini('Conversiones', fmtInt(selected.conv), null, ''),
+    mini('CTR', fmtPct(selected.ctr), null, ''),
+    mini('Reproducciones', fmtInt(selected.retention.plays), (selected.retention.avgPlay||0).toFixed(1)+'s prom.', '')
   ].join('');
   return `
-    <div class="exec-sub">Retención de video <span class="hint">— mismos checkpoints que reporta TikTok (no es proporcional al tiempo real)</span></div>
+    <div class="exec-sub">Retención de video <span class="hint">— pasá el mouse por el gráfico para el detalle</span></div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
         <div class="chart-title">Curva de retención</div>
         <div class="chart-title-actions"><select class="select select-sm" id="ttRetentionVideoSel">${opts}</select></div>
       </div>
-      <div class="exec-grid conv-grid" style="margin-bottom:14px">${cards}</div>
-      ${videoRetentionChartSVG(selected.retention, avg)}
-      <div class="trend-legend" style="margin-top:6px"><span><i class="lg-line" style="background:#25F4EE"></i>${esc(selected.name)}</span><span><i class="lg-dash"></i>Promedio de ${videosAgg.length} video${videosAgg.length>1?'s':''}</span></div>
+      <div class="mini-grid" style="margin-bottom:14px">${cards}</div>
+      ${videoRetentionChartSVG(selected.retention, avg, videos.length)}
+      <div class="trend-legend" style="margin-top:6px"><span><i class="lg-line" style="background:#25F4EE"></i>${esc(selected.name)}</span><span><i class="lg-dash"></i>Promedio de ${videos.length} video${videos.length>1?'s':''}</span></div>
     </div>`;
 }
 function tiktokSectionHTML(c) {
@@ -3570,7 +3584,8 @@ function tiktokSectionHTML(c) {
   let ttVideoMetric = state.ttVideoMetric;
   if (leadsT && (ttVideoMetric === 'roas' || ttVideoMetric === 'ventas')) ttVideoMetric = 'gasto';
   const tvm = CAMP_METRICS[ttVideoMetric];
-  const videosAgg = cfApply(c, 'tiktok', L.videos, 'campId').slice(0, 10);
+  const videosAggFull = cfApply(c, 'tiktok', L.videos, 'campId');
+  const videosAgg = videosAggFull.slice(0, 10);
   const ttVideoTarget = targetForMetric(ttVideoMetric, t);
   const topVideosChart = verticalBarsHTML(videosAgg, { value: CAMP_VALUE_FN[ttVideoMetric], fmt: tvm.fmt, lowerIsBetter: ttVideoMetric === 'cpa', target: ttVideoTarget, status: statusFnForMetric(ttVideoMetric, ttVideoTarget), trend: it => synthTrend(`${c.metaId}|ttvidchart|${ttVideoMetric}|${it.name}`, CAMP_VALUE_FN[ttVideoMetric](it), 6), subtitle: it => `Reproducciones ${fmtInt(it.views)} · Compl. ${fmtPct(it.vcr)}` });
   const ttVideoMetricOpts = Object.entries(CAMP_METRICS).map(([k,v]) => {
@@ -3592,7 +3607,6 @@ function tiktokSectionHTML(c) {
     ${pacingWidgetHTML(c, 'tiktok')}
     ${cfBarHTML(c, 'tiktok', L.campaigns)}
     ${trendChartSectionHTML(c, 'tiktok')}
-    ${videoRetentionSectionHTML(c, videosAgg)}
     <div class="exec-sub">Performance por campaña${cfActive(c, 'tiktok') ? ' <span class="hint">— filtrado (filtro arriba, sobre la evolución diaria)</span>' : ''}</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
@@ -3614,7 +3628,8 @@ function tiktokSectionHTML(c) {
         </div>
       </div>
       ${ttVideoMode==='chart' ? topVideosChart : metricTableHTML(videosAgg, 'ttVideoTable', leadsT)}
-    </div>`;
+    </div>
+    ${videoRetentionSectionHTML(c, videosAggFull, leadsT)}`;
 }
 
 function closeCliSelPop() {

@@ -3446,6 +3446,46 @@ function weightedRetention(videos) {
   videos.forEach(v => { const r = v.retention; if (!r) return; Object.keys(sum).forEach(k => { sum[k] += r[k] || 0; }); });
   return sum;
 }
+// TikTok deja poner cualquier texto como nombre del anuncio, y en esta cuenta el nombre real termina siendo
+// el copy completo del posteo con el nombre corto pegado al final después de un "_" (ej. "Llegamos a
+// FarmaPlus ! Ya podés conseguirlo... _VID - Llegamos a FarmaPlus"). Si hay "_" se muestra solo lo que
+// queda después del último — si no lo hay, se deja el nombre tal cual (no se inventa nada).
+function shortAdName(name) {
+  const s = String(name || '').trim();
+  const parts = s.split('_');
+  return parts.length > 1 ? parts[parts.length - 1].trim() : s;
+}
+// La misma creatividad suele correr en varios anuncios (distinto ad_id, mismo nombre corto) — por eso
+// el selector se arma agrupando por nombre corto y sumando la retención + métricas de negocio de todos
+// los anuncios que comparten esa creatividad, en vez de listarlos sueltos y duplicados.
+function groupVideosByShortName(videos) {
+  const groups = new Map();
+  videos.forEach(v => {
+    const key = shortAdName(v.name) || v.name;
+    let g = groups.get(key);
+    if (!g) {
+      g = { name: key, spend: 0, conv: 0, clicks: 0, impr: 0, revenueSum: 0,
+        retention: { plays: 0, w2: 0, w6: 0, p25: 0, p50: 0, p75: 0, p100: 0, avgPlaySum: 0 } };
+      groups.set(key, g);
+    }
+    g.spend += v.spend || 0; g.conv += v.conv || 0; g.clicks += v.clicks || 0; g.impr += v.impr || 0;
+    if (v.roas != null) g.revenueSum += (v.spend || 0) * v.roas;
+    const r = v.retention || {};
+    g.retention.plays += r.plays || 0; g.retention.w2 += r.w2 || 0; g.retention.w6 += r.w6 || 0;
+    g.retention.p25 += r.p25 || 0; g.retention.p50 += r.p50 || 0; g.retention.p75 += r.p75 || 0; g.retention.p100 += r.p100 || 0;
+    g.retention.avgPlaySum += (r.avgPlay || 0) * (r.plays || 0);
+  });
+  return Array.from(groups.values()).map(g => ({
+    name: g.name, spend: Math.round(g.spend), conv: Math.round(g.conv),
+    roas: g.spend > 0 ? +(g.revenueSum / g.spend).toFixed(2) : null,
+    ctr: g.impr > 0 ? +(g.clicks / g.impr * 100).toFixed(2) : 0,
+    retention: {
+      plays: g.retention.plays, w2: g.retention.w2, w6: g.retention.w6,
+      p25: g.retention.p25, p50: g.retention.p50, p75: g.retention.p75, p100: g.retention.p100,
+      avgPlay: g.retention.plays > 0 ? g.retention.avgPlaySum / g.retention.plays : 0
+    }
+  })).sort((a, b) => b.spend - a.spend);
+}
 // Tooltip al pasar el mouse: reusa el mecanismo ya armado para las líneas de tendencia (svg[data-sp] +
 // #sparkTip, ver más abajo) — un solo punto por checkpoint, con el % y el conteo de las dos líneas.
 function videoRetentionChartSVG(selected, avg, avgCount) {
@@ -3454,12 +3494,22 @@ function videoRetentionChartSVG(selected, avg, avgCount) {
   const n = selPts.length;
   const xFor = i => padL + (i/(n-1))*plotW;
   const yFor = pct => padT + plotH - (Math.max(0, Math.min(100, pct))/100)*plotH;
-  const selLine = smoothPath(selPts.map((p,i) => [xFor(i), yFor(p.pct)]));
+  const selCoords = selPts.map((p,i) => [xFor(i), yFor(p.pct)]);
+  const selLine = smoothPath(selCoords);
   const avgLine = smoothPath(avgPts.map((p,i) => [xFor(i), yFor(p.pct)]));
+  const areaPath = `${selLine} L${selCoords[selCoords.length-1][0].toFixed(1)},${(padT+plotH).toFixed(1)} L${selCoords[0][0].toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
   const grid = [0,25,50,75,100].map(pct => { const y = yFor(pct);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(padL+plotW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" opacity="${pct===0?0.9:0.4}"/><text x="${(padL-8).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${pct}%</text>`; }).join('');
   const xlabels = selPts.map((p,i) => `<text x="${xFor(i).toFixed(1)}" y="${VB_H-8}" text-anchor="middle" font-size="10" fill="var(--text-faint)">${esc(p.label)}</text>`).join('');
-  const dots = selPts.map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.pct).toFixed(1)}" r="3" fill="#25F4EE"/>`).join('');
+  const dots = selPts.map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.pct).toFixed(1)}" r="3.5" fill="#FE2C55" stroke="var(--surface)" stroke-width="1"/>`).join('');
+  // Franja destacada en el tramo con la mayor caída de retención — lo mismo que resaltan las herramientas
+  // de terceros ("biggest drop"), para que salte a la vista sin tener que leer los números uno por uno.
+  let dropBand = '', dropIdx = -1, dropVal = 0;
+  for (let i = 0; i < n-1; i++) { const d = selPts[i].pct - selPts[i+1].pct; if (d > dropVal) { dropVal = d; dropIdx = i; } }
+  if (dropIdx >= 0 && dropVal >= 3) {
+    const x0 = xFor(dropIdx), x1 = xFor(dropIdx+1);
+    dropBand = `<rect x="${x0.toFixed(1)}" y="${padT}" width="${(x1-x0).toFixed(1)}" height="${plotH}" fill="#FFB020" opacity="0.14"/><text x="${((x0+x1)/2).toFixed(1)}" y="${padT+12}" text-anchor="middle" font-size="9" font-weight="600" fill="#FFB020">-${dropVal.toFixed(0)} pts</text>`;
+  }
   // El "segundo" solo tiene sentido en los checkpoints de tiempo (2s/6s); en los de % de duración se
   // aclara igual el checkpoint, para que quede claro a qué punto del video corresponde cada dato.
   const secLabel = { 'Inicio':'al arrancar', '2s':'a los 2 segundos', '6s':'a los 6 segundos', '25%':'al 25% del video', '50%':'a la mitad del video', '75%':'al 75% del video', '100%':'al terminar el video' };
@@ -3467,10 +3517,25 @@ function videoRetentionChartSVG(selected, avg, avgCount) {
     x: +xFor(i).toFixed(1), y: +yFor(p.pct).toFixed(1),
     t: `${secLabel[p.label] || p.label}: este video ${p.pct.toFixed(1)}% (${fmtInt(Math.round(selected.plays*p.pct/100))} de ${fmtInt(selected.plays)}) · promedio ${avgPts[i].pct.toFixed(1)}% (${fmtInt(avgCount)} videos)`
   }));
-  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" style="width:100%;height:auto" data-sp="${esc(JSON.stringify(spPts))}"><rect width="${VB_W}" height="${VB_H}" fill="transparent"/>${grid}<path d="${avgLine}" fill="none" stroke="var(--text-faint)" stroke-width="1.6" stroke-dasharray="5 4"/><path d="${selLine}" fill="none" stroke="#25F4EE" stroke-width="2.4"/>${dots}<circle class="sp-dot" r="4" fill="#25F4EE" stroke="var(--surface)" stroke-width="1.5" style="display:none"/>${xlabels}</svg>`;
+  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" style="width:100%;height:auto" data-sp="${esc(JSON.stringify(spPts))}">
+    <defs>
+      <linearGradient id="ttRetAreaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#25F4EE" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="#25F4EE" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="ttRetLineGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#25F4EE"/>
+        <stop offset="100%" stop-color="#FE2C55"/>
+      </linearGradient>
+    </defs>
+    <rect width="${VB_W}" height="${VB_H}" fill="transparent"/>${grid}${dropBand}
+    <path d="${areaPath}" fill="url(#ttRetAreaGrad)" stroke="none"/>
+    <path d="${avgLine}" fill="none" stroke="var(--text-faint)" stroke-width="1.6" stroke-dasharray="5 4"/>
+    <path d="${selLine}" fill="none" stroke="url(#ttRetLineGrad)" stroke-width="2.6" stroke-linecap="round"/>
+    ${dots}<circle class="sp-dot" r="4.5" fill="#FE2C55" stroke="var(--surface)" stroke-width="1.5" style="display:none"/>${xlabels}</svg>`;
 }
 function videoRetentionSectionHTML(c, allVideos, leadsT) {
-  const videos = allVideos.filter(v => v.retention && v.retention.plays > 0);
+  const videos = groupVideosByShortName(allVideos.filter(v => v.retention && v.retention.plays > 0));
   if (!videos.length) return `<div class="exec-sub">Retención de video</div><div class="empty-ok">Sin videos con reproducciones en este período.</div>`;
   if (!state.ttRetentionVideo || !videos.find(v => v.name === state.ttRetentionVideo)) state.ttRetentionVideo = videos[0].name;
   const selected = videos.find(v => v.name === state.ttRetentionVideo) || videos[0];
@@ -3495,7 +3560,7 @@ function videoRetentionSectionHTML(c, allVideos, leadsT) {
       </div>
       <div class="mini-grid" style="margin-bottom:14px">${cards}</div>
       ${videoRetentionChartSVG(selected.retention, avg, videos.length)}
-      <div class="trend-legend" style="margin-top:6px"><span><i class="lg-line" style="background:#25F4EE"></i>${esc(selected.name)}</span><span><i class="lg-dash"></i>Promedio de ${videos.length} video${videos.length>1?'s':''}</span></div>
+      <div class="trend-legend" style="margin-top:6px"><span><i class="lg-line" style="background:linear-gradient(90deg,#25F4EE,#FE2C55)"></i>${esc(selected.name)}</span><span><i class="lg-dash"></i>Promedio de ${videos.length} video${videos.length>1?'s':''}</span><span><i class="lg-line" style="background:#FFB020;opacity:.5"></i>Mayor caída</span></div>
     </div>`;
 }
 function tiktokSectionHTML(c) {

@@ -1067,7 +1067,7 @@ async function fetchTikTokClient(authToken, advertiserId, since, until, leads, p
     .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
   const videos = adRows.map(r => {
     const d = parse(r), p = n(d.m.video_play_actions);
-    return { campId: String(d.m.campaign_id), name: d.m.ad_name || r.dimensions.ad_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0,
+    return { campId: String(d.m.campaign_id), name: shortAdName(d.m.ad_name || r.dimensions.ad_id), spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0,
       retention: { plays: p, w2: n(d.m.video_watched_2s), w6: n(d.m.video_watched_6s), p25: n(d.m.video_views_p25), p50: n(d.m.video_views_p50), p75: n(d.m.video_views_p75), p100: n(d.m.video_views_p100), avgPlay: n(d.m.average_video_play) } };
   }).filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
   return {

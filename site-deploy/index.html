@@ -1060,7 +1060,8 @@ async function fetchTikTokClient(authToken, advertiserId, since, until, leads, p
     .filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
   const videos = adRows.map(r => {
     const d = parse(r), p = n(d.m.video_play_actions);
-    return { campId: String(d.m.campaign_id), name: d.m.ad_name || r.dimensions.ad_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0 };
+    return { campId: String(d.m.campaign_id), name: d.m.ad_name || r.dimensions.ad_id, spend: Math.round(d.spend), conv: d.conv, roas: d.roas, ctr: d.ctr, impr: d.impr, clicks: d.clicks, views: p, vcr: p > 0 ? +(n(d.m.video_views_p100)/p*100).toFixed(1) : 0,
+      retention: { plays: p, w2: n(d.m.video_watched_2s), w6: n(d.m.video_watched_6s), p25: n(d.m.video_views_p25), p50: n(d.m.video_views_p50), p75: n(d.m.video_views_p75), p100: n(d.m.video_views_p100), avgPlay: n(d.m.average_video_play) } };
   }).filter(x => x.spend > 0).sort((a, b) => b.spend - a.spend);
   return {
     raw: { spend: Math.round(tot.spend), roas: tot.roas, conv: tot.conv, impr: tot.impr, clicks: tot.clicks, trend: days.map(d => d.gasto) },
@@ -3425,6 +3426,64 @@ function topPinsTableHTML(pins) {
     <tbody>${rows}</tbody>
   </table></div>`;
 }
+/* Retención de video (TikTok): misma curva que muestran las herramientas de terceros — son los mismos
+   "checkpoints" que TikTok ya expone (2s, 6s, 25/50/75/100%), no un dato exclusivo de ellas. */
+const RETENTION_STAGES = [['Inicio', 'plays'], ['2s', 'w2'], ['6s', 'w6'], ['25%', 'p25'], ['50%', 'p50'], ['75%', 'p75'], ['100%', 'p100']];
+function retentionPct(r) {
+  if (!r || !r.plays) return RETENTION_STAGES.map(([label]) => ({ label, pct: 0 }));
+  return RETENTION_STAGES.map(([label, key]) => ({ label, pct: key === 'plays' ? 100 : (r[key] || 0) / r.plays * 100 }));
+}
+// Promedio ponderado por volumen (no promedio simple de %) — así coincide con lo que daría el total de la cuenta.
+function weightedRetention(videos) {
+  const sum = { plays: 0, w2: 0, w6: 0, p25: 0, p50: 0, p75: 0, p100: 0 };
+  videos.forEach(v => { const r = v.retention; if (!r) return; Object.keys(sum).forEach(k => { sum[k] += r[k] || 0; }); });
+  return sum;
+}
+function videoRetentionChartSVG(selected, avg) {
+  const selPts = retentionPct(selected), avgPts = retentionPct(avg);
+  const VB_W = 680, VB_H = 240, padL = 34, padR = 10, padT = 14, padB = 26, plotW = VB_W-padL-padR, plotH = VB_H-padT-padB;
+  const n = selPts.length;
+  const xFor = i => padL + (i/(n-1))*plotW;
+  const yFor = pct => padT + plotH - (Math.max(0, Math.min(100, pct))/100)*plotH;
+  const selLine = smoothPath(selPts.map((p,i) => [xFor(i), yFor(p.pct)]));
+  const avgLine = smoothPath(avgPts.map((p,i) => [xFor(i), yFor(p.pct)]));
+  const grid = [0,25,50,75,100].map(pct => { const y = yFor(pct);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(padL+plotW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" opacity="${pct===0?0.9:0.4}"/><text x="${(padL-8).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${pct}%</text>`; }).join('');
+  const xlabels = selPts.map((p,i) => `<text x="${xFor(i).toFixed(1)}" y="${VB_H-8}" text-anchor="middle" font-size="10" fill="var(--text-faint)">${esc(p.label)}</text>`).join('');
+  const dots = selPts.map((p,i) => `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(p.pct).toFixed(1)}" r="3" fill="#25F4EE"/>`).join('');
+  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" style="width:100%;height:auto">${grid}<path d="${avgLine}" fill="none" stroke="var(--text-faint)" stroke-width="1.6" stroke-dasharray="5 4"/><path d="${selLine}" fill="none" stroke="#25F4EE" stroke-width="2.4"/>${dots}${xlabels}</svg>`;
+}
+function retentionStatCard(label, selPct, avgPct, extra) {
+  const diff = Math.round((selPct - avgPct) * 10) / 10;
+  const col = Math.abs(diff) < 0.5 ? 'var(--text-faint)' : (diff > 0 ? 'var(--green)' : 'var(--red)');
+  return `<div class="exec-card"><div class="l">${esc(label)}</div><div class="v-row"><div class="v num">${fmtPct(selPct)}</div></div><div class="s" style="color:${col}">${diff>0?'+':''}${diff} pts vs. promedio${extra ? ' · ' + extra : ''}</div></div>`;
+}
+function videoRetentionSectionHTML(c, videosAgg) {
+  if (!videosAgg.length) return `<div class="exec-sub">Retención de video</div><div class="empty-ok">Sin videos con gasto en este período.</div>`;
+  if (!state.ttRetentionVideo || !videosAgg.find(v => v.name === state.ttRetentionVideo)) state.ttRetentionVideo = videosAgg[0].name;
+  const selected = videosAgg.find(v => v.name === state.ttRetentionVideo) || videosAgg[0];
+  const avg = weightedRetention(videosAgg);
+  const selPts = retentionPct(selected.retention), avgPts = retentionPct(avg);
+  const at = key => selPts.find(p => p.label === key).pct, atAvg = key => avgPts.find(p => p.label === key).pct;
+  const opts = videosAgg.map(v => `<option value="${esc(v.name)}" ${v.name===selected.name?'selected':''}>${esc(v.name)}</option>`).join('');
+  const cards = [
+    retentionStatCard('Hook (2s)', at('2s'), atAvg('2s')),
+    retentionStatCard('Hold (6s)', at('6s'), atAvg('6s')),
+    retentionStatCard('Completado (100%)', at('100%'), atAvg('100%')),
+    `<div class="exec-card"><div class="l">Tiempo prom. de reproducción</div><div class="v-row"><div class="v num">${(selected.retention.avgPlay||0).toFixed(1)}s</div></div><div class="s">Reproducciones: ${fmtInt(selected.retention.plays)}</div></div>`
+  ].join('');
+  return `
+    <div class="exec-sub">Retención de video <span class="hint">— mismos checkpoints que reporta TikTok (no es proporcional al tiempo real)</span></div>
+    <div class="chart-box chart-box-wide">
+      <div class="chart-title-row">
+        <div class="chart-title">Curva de retención</div>
+        <div class="chart-title-actions"><select class="select select-sm" id="ttRetentionVideoSel">${opts}</select></div>
+      </div>
+      <div class="exec-grid conv-grid" style="margin-bottom:14px">${cards}</div>
+      ${videoRetentionChartSVG(selected.retention, avg)}
+      <div class="trend-legend" style="margin-top:6px"><span><i class="lg-line" style="background:#25F4EE"></i>${esc(selected.name)}</span><span><i class="lg-dash"></i>Promedio de ${videosAgg.length} video${videosAgg.length>1?'s':''}</span></div>
+    </div>`;
+}
 function tiktokSectionHTML(c) {
   const R = c.platforms.tiktok, L = c.tiktokLive;
   if (c.tiktokError) {
@@ -3495,23 +3554,6 @@ function tiktokSectionHTML(c) {
     execCard('Tasa de engagement', fmtPct(engRate), 'likes + comentarios + shares', 'green', null, null)
   ].join('');
 
-  const vStages = [
-    ['Reproducciones', videoViews],
-    ['Vieron 25%', V.p25],
-    ['Vieron 50%', V.p50],
-    ['Vieron 75%', V.p75],
-    ['Vieron 100%', V.p100]
-  ];
-  const vColors = ['#00EABD','#5B9BFF','#A88AFF','#F2B441','#FF6B66'];
-  const vMax = videoViews || 1;
-  const videoFunnelRows = vStages.map((s,i) => {
-    const w2 = Math.max(4, (s[1]/vMax)*100);
-    const col = vColors[i] || vColors[vColors.length-1];
-    const prev = i>0 ? vStages[i-1][1] : 0;
-    const cv = i>0 ? `<div class="fnl-conv">↓ <b>${prev>0?(s[1]/prev*100).toFixed(1):'0.0'}%</b> de ${esc(vStages[i-1][0]).toLowerCase()}</div>` : '';
-    return `${cv}<div class="fnl-stage"><div class="fnl-row"><span class="fnl-name">${esc(s[0])}</span><span class="fnl-count num">${fmtInt(s[1])}</span></div><div class="fnl-bar"><div class="fnl-fill" style="width:${w2.toFixed(1)}%;background:${col}"></div></div></div>`;
-  }).join('');
-
   if (!state.ttCampChartMetric) state.ttCampChartMetric = 'roas';
   let ttCampMetric = state.ttCampChartMetric;
   if (leadsT && (ttCampMetric === 'roas' || ttCampMetric === 'ventas')) ttCampMetric = 'gasto';
@@ -3550,8 +3592,7 @@ function tiktokSectionHTML(c) {
     ${pacingWidgetHTML(c, 'tiktok')}
     ${cfBarHTML(c, 'tiktok', L.campaigns)}
     ${trendChartSectionHTML(c, 'tiktok')}
-    <div class="exec-sub">Embudo de reproducción de video</div>
-    <div class="fnl">${videoFunnelRows}</div>
+    ${videoRetentionSectionHTML(c, videosAgg)}
     <div class="exec-sub">Performance por campaña${cfActive(c, 'tiktok') ? ' <span class="hint">— filtrado (filtro arriba, sobre la evolución diaria)</span>' : ''}</div>
     <div class="chart-box chart-box-wide">
       <div class="chart-title-row">
@@ -3616,7 +3657,7 @@ function renderCliente() {
   }
   // Cada vez que se entra a otro cliente o plataforma, las tablas arrancan en modo tabla y sin filtros abiertos.
   const modeKey = state.cliClient + '|' + state.cliView;
-  if (state.modeKey !== modeKey) { state.modeKey = modeKey; state.chartViewMode = {}; state.hierOpen = null; state.hierSearch = {}; state.colW = {}; state.cfOpen = false; state.cfSearch = ''; }
+  if (state.modeKey !== modeKey) { state.modeKey = modeKey; state.chartViewMode = {}; state.hierOpen = null; state.hierSearch = {}; state.colW = {}; state.cfOpen = false; state.cfSearch = ''; state.ttRetentionVideo = null; }
   const objToggle = `<div class="seg" id="cliObjSeg">
       <button data-obj="ventas" class="${state.cliObjetivo!=='leads'?'active':''}">Ventas</button>
       <button data-obj="leads" class="${state.cliObjetivo==='leads'?'active':''}">Leads</button>
@@ -3674,6 +3715,7 @@ function renderCliente() {
     const pcms = document.getElementById('pinCampMetricSel'); if (pcms) pcms.addEventListener('change', e => { state.pinCampChartMetric = e.target.value; renderCliente(); });
     const tcms = document.getElementById('ttCampMetricSel'); if (tcms) tcms.addEventListener('change', e => { state.ttCampChartMetric = e.target.value; renderCliente(); });
     const tvms = document.getElementById('ttVideoMetricSel'); if (tvms) tvms.addEventListener('change', e => { state.ttVideoMetric = e.target.value; renderCliente(); });
+    const trvs = document.getElementById('ttRetentionVideoSel'); if (trvs) trvs.addEventListener('change', e => { state.ttRetentionVideo = e.target.value; renderCliente(); });
     const pms = document.getElementById('pinMetricSel'); if (pms) pms.addEventListener('change', e => { state.pinChartMetric = e.target.value; renderCliente(); });
     const gcms = document.getElementById('gCampMetricSel'); if (gcms) gcms.addEventListener('change', e => { state.gCampChartMetric = e.target.value; renderCliente(); });
     document.querySelectorAll('#kwTable thead th.sortable').forEach(th => th.addEventListener('click', () => {

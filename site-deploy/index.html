@@ -901,11 +901,30 @@ function metaActionSum(list, types) {
   }
   return 0;
 }
+// Clientes de leads: lo que Meta muestra como "Resultado" suele ser una conversión personalizada
+// (ej. "Thank You page" = offsite_conversion.custom.<id>), no el evento estándar "lead". Se detecta una
+// sola vez por cliente con los totales del período y se usa el mismo tipo en diario/jerarquía, para no
+// mezclar acciones distintas entre filas. El override manual (Umbrales) tiene prioridad.
+const META_LEAD_FALLBACK = ['lead', 'offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_grouped'];
+function detectMetaLeadTypes(actions, override) {
+  if (override) return [override];
+  const customs = (actions || []).filter(a => /^offsite_conversion\.custom\./.test(a.action_type));
+  if (customs.length) return [customs.reduce((best, a) => (+a.value || 0) > (+best.value || 0) ? a : best).action_type];
+  return META_LEAD_FALLBACK;
+}
+async function fetchMetaLeadTypes(authToken, accountId, since, until, override) {
+  if (override) return [override];
+  try {
+    const res = await fetch(`/api/meta?type=totals&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`, { headers: { Authorization: `Bearer ${authToken}` } });
+    const json = await res.json();
+    return detectMetaLeadTypes(json.data && json.data[0] && json.data[0].actions, null);
+  } catch (e) { return META_LEAD_FALLBACK; }
+}
 function pctDelta(curr, prev) {
   if (curr == null || prev == null || prev === 0) return null;
   return Math.round((curr - prev) / prev * 100);
 }
-async function fetchMetaTotals(authToken, accountId, since, until) {
+async function fetchMetaTotals(authToken, accountId, since, until, convTypes) {
   const url = `/api/meta?type=totals&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
@@ -913,7 +932,7 @@ async function fetchMetaTotals(authToken, accountId, since, until) {
     if (json.error || !json.data || !json.data[0]) return null;
     const row = json.data[0];
     const spend = +row.spend || 0;
-    const conv = metaActionSum(row.actions, META_PURCHASE_ACTION_PRIORITY);
+    const conv = metaActionSum(row.actions, convTypes || META_PURCHASE_ACTION_PRIORITY);
     const revenue = metaActionSum(row.action_values, META_PURCHASE_ACTION_PRIORITY);
     const impr = +row.impressions || 0;
     const clicks = +row.clicks || 0;
@@ -926,7 +945,7 @@ async function fetchMetaTotals(authToken, accountId, since, until) {
     };
   } catch (e) { return null; }
 }
-async function fetchMetaHierarchy(authToken, accountId, since, until) {
+async function fetchMetaHierarchy(authToken, accountId, since, until, convTypes) {
   const url = `/api/meta?type=hierarchy&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
@@ -939,7 +958,7 @@ async function fetchMetaHierarchy(authToken, accountId, since, until) {
       setId: r.adset_id, setName: r.adset_name || r.adset_id,
       adId: r.ad_id, adName: r.ad_name || r.ad_id,
       spend: +r.spend || 0,
-      conv: metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY),
+      conv: metaActionSum(r.actions, convTypes || META_PURCHASE_ACTION_PRIORITY),
       revenue: metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY),
       lpv: metaActionSum(r.actions, META_LPV_ACTION_PRIORITY),
       atc: metaActionSum(r.actions, META_ATC_ACTION_PRIORITY),
@@ -997,9 +1016,9 @@ async function fetchMetaInsightsDaily(authToken, accountId, since, until) {
   if (json.error) { throw new Error(json.error); }
   return json.data || [];
 }
-function metaDayFromRow(row) {
+function metaDayFromRow(row, convTypes) {
   const spend = +row.spend || 0;
-  const conv = metaActionSum(row.actions, META_PURCHASE_ACTION_PRIORITY);
+  const conv = metaActionSum(row.actions, convTypes || META_PURCHASE_ACTION_PRIORITY);
   const revenue = metaActionSum(row.action_values, META_PURCHASE_ACTION_PRIORITY);
   return {
     date: row.date_start,
@@ -1032,9 +1051,9 @@ function metaDaysToWeekly(days) {
   }
   return { gasto, cpa, roas, ctr };
 }
-async function fetchMetaClient(token, accountId, fromDate, toDate) {
+async function fetchMetaClient(token, accountId, fromDate, toDate, convTypes) {
   const rows = await fetchMetaInsightsDaily(token, accountId, fromDate, toDate);
-  const days = rows.map(metaDayFromRow).sort((a,b) => a.date < b.date ? -1 : 1);
+  const days = rows.map(r => metaDayFromRow(r, convTypes)).sort((a,b) => a.date < b.date ? -1 : 1);
   return { days, raw: metaDaysToRaw(days), weekly: metaDaysToWeekly(days) };
 }
 /* ===== TikTok Marketing API (datos reales, vía nuestro backend — el token vive en el servidor) ===== */
@@ -1340,15 +1359,17 @@ async function buildClients(period) {
       ? fetchGoogleClient(authToken, row.googleId, sinceStr, untilStr, prevSince, prevUntil).then(g => ({ g }), e => ({ e }))
       : null;
     let metaRaw = scale(p.meta), weekly = wk ? { labels: WEEK_LABELS, ...wk } : null, metaLiveDays = null, metaError = null, metaLiveHierarchy = null;
+    let metaConvTypes = null;
     if (accountId && authToken) {
       try {
-        const live = await fetchMetaClient(authToken, accountId, sinceStr, untilStr);
+        if (isLeads(row)) metaConvTypes = await fetchMetaLeadTypes(authToken, accountId, sinceStr, untilStr, (state.clientThresholds[row.metaId] || {}).leadAction);
+        const live = await fetchMetaClient(authToken, accountId, sinceStr, untilStr, metaConvTypes);
         metaRaw = live.raw; metaLiveDays = live.days; if (live.weekly) weekly = live.weekly;
         // "vs período anterior" tiene que comparar el TOTAL de este período contra el TOTAL
         // de un período anterior de igual longitud — no el primer día contra el último día
         // (eso es lo que hace deriveMetrics por defecto, pensado para el mock, muy ruidoso con
         // datos reales día a día).
-        const [prevTotals, curTotals] = await Promise.all([fetchMetaTotals(authToken, accountId, prevSince, prevUntil), fetchMetaTotals(authToken, accountId, sinceStr, untilStr)]);
+        const [prevTotals, curTotals] = await Promise.all([fetchMetaTotals(authToken, accountId, prevSince, prevUntil, metaConvTypes), fetchMetaTotals(authToken, accountId, sinceStr, untilStr, metaConvTypes)]);
         if (curTotals) metaRaw.reach = curTotals.reach;
         if (prevTotals) {
           const revenue = metaRaw.roas != null ? metaRaw.spend * metaRaw.roas : null;
@@ -1375,7 +1396,7 @@ async function buildClients(period) {
           metaRaw.prevAtc = prevTotals.atc;
           metaRaw.prevChk = prevTotals.chk;
         }
-        metaLiveHierarchy = await fetchMetaHierarchy(authToken, accountId, sinceStr, untilStr);
+        metaLiveHierarchy = await fetchMetaHierarchy(authToken, accountId, sinceStr, untilStr, metaConvTypes);
       } catch (e) { metaError = e.message; }
     }
     let tiktokRaw = scale(p.tiktok), tiktokLive = null, tiktokError = null;
@@ -1397,7 +1418,7 @@ async function buildClients(period) {
       const r = await googleP;
       if (r.g) { googleRaw = r.g.raw; googleLive = r.g.live; } else googleError = r.e.message;
     }
-    return { ...row, platforms: { meta: metaRaw, google: googleRaw, pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, tiktokLive, tiktokError, pinterestLive, pinterestError, googleLive, googleError, range: { since: sinceStr, until: untilStr } };
+    return { ...row, platforms: { meta: metaRaw, google: googleRaw, pinterest: pinterestRaw, tiktok: tiktokRaw }, weekly, metaLiveDays, metaError, metaLive: !!accountId, metaLiveHierarchy, metaConvTypes, tiktokLive, tiktokError, pinterestLive, pinterestError, googleLive, googleError, range: { since: sinceStr, until: untilStr } };
   }));
 }
 
@@ -1976,6 +1997,7 @@ function umbralesBody(c) {
         <div class="field"><label>Presupuesto mensual ($)</label><input class="input num" id="thcBudget" type="number" step="1000" value="${o.budget != null ? o.budget : (t.budget || '')}"></div>
         <div class="field"><label>CTR mínimo (%)</label><input class="input num" id="thcCtr" type="number" step="0.1" value="${o.ctr != null ? o.ctr : t.ctr}"></div>
         <div class="field"><label>Pacing mínimo (%)</label><input class="input num" id="thcPacing" type="number" step="5" value="${o.pacing != null ? o.pacing : t.pacing}"></div>
+        ${leads ? `<div class="field" style="flex:1 1 100%"><label>Conversión que cuenta como lead en Meta <span style="color:var(--text-faint);font-weight:500">· opcional, vacío = automático</span></label><input class="input" id="thcLeadAction" type="text" value="${esc(o.leadAction || '')}" placeholder="ej. offsite_conversion.custom.605614124410430"></div>` : ''}
         <button class="btn btn-primary btn-sm" id="thcSave">Guardar</button>
         <button class="btn btn-sm" id="thcReset">Restablecer</button>
       </div>
@@ -2013,8 +2035,14 @@ function wireUmbralesForm() {
     const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
     const o = {}; const r = num('thcRoas'), cp = num('thcCpa'), ct = num('thcCtr'), pa = num('thcPacing'), cg = num('thcConv'), bd = num('thcBudget');
     if (!isLeads(c) && r != null) o.roas = r; if (cp != null) o.cpa = cp; if (ct != null) o.ctr = ct; if (pa != null) o.pacing = pa; if (cg != null) o.convGoal = cg; if (bd != null) o.budget = bd;
+    // Guardar umbrales no debe borrar lo que se cargó en otros bloques (presupuesto por plataforma, conversión de lead).
+    const prev = state.clientThresholds[c.metaId] || {};
+    Object.keys(prev).forEach(k => { if (k.startsWith('budget_')) o[k] = prev[k]; });
+    const la = document.getElementById('thcLeadAction');
+    if (la) { if (la.value.trim()) o.leadAction = la.value.trim(); } else if (prev.leadAction) o.leadAction = prev.leadAction;
     state.clientThresholds[c.metaId] = o; await saveClientThresholds(o);
     toast(`Umbrales de ${c.nombre} guardados`); renderAll();
+    if ((o.leadAction || '') !== (prev.leadAction || '')) loadData(true);
   });
   if (reset) reset.addEventListener('click', async () => {
     delete state.clientThresholds[c.metaId];
@@ -2382,14 +2410,14 @@ function groupAgg(items, keyFn) {
   })).sort((a,b) => b.spend-a.spend);
 }
 /* Evolución diaria filtrada por campaña/grupo (Meta): datos diarios por grupo de anuncios, se piden solo al activar un filtro. */
-async function fetchMetaHierDaily(authToken, accountId, since, until) {
+async function fetchMetaHierDaily(authToken, accountId, since, until, convTypes) {
   const url = `/api/meta?type=hierdaily&accountId=${encodeURIComponent(accountId)}&since=${since}&until=${until}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${authToken}` } });
   const json = await res.json();
   if (json.error) throw new Error(json.error);
   return (json.data || []).filter(r => r.adset_id).map(r => ({
     date: r.date_start, campId: r.campaign_id, setId: r.adset_id,
-    spend: +r.spend || 0, conv: metaActionSum(r.actions, META_PURCHASE_ACTION_PRIORITY), revenue: metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY),
+    spend: +r.spend || 0, conv: metaActionSum(r.actions, convTypes || META_PURCHASE_ACTION_PRIORITY), revenue: metaActionSum(r.action_values, META_PURCHASE_ACTION_PRIORITY),
     impr: +r.impressions || 0, clicks: +r.clicks || 0
   }));
 }
@@ -2401,7 +2429,7 @@ function loadHierDaily(c) {
   const accountId = state.clientAccounts[c.metaId];
   if (c.hierDaily || !c.metaLiveHierarchy || !accountId || !c.range || !state.session) return;
   c.hierDaily = { status: 'loading' };
-  fetchMetaHierDaily(state.session.access_token, accountId, c.range.since, c.range.until)
+  fetchMetaHierDaily(state.session.access_token, accountId, c.range.since, c.range.until, c.metaConvTypes)
     .then(rows => { c.hierDaily = { status: 'ok', rows }; })
     .catch(e => { c.hierDaily = { status: 'error', message: e.message }; })
     .then(() => { if (state.view === 'cliente' && state.cliView === 'meta' && state.cliClient === c.metaId) renderCliente(); });
@@ -3068,9 +3096,11 @@ function googleLiveSectionHTML(c, R, L) {
     execCard('CTR', fmtPct(m.ctr), 'click-through', '', dl(m.ctr, pv&&pv.ctr), sCtr, tP),
     execCard('CPC prom.', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', dl(cpc, pv&&pv.cpc), sCpc, tM),
     execCard(leads?'Leads':'Conversiones', fmtInt(R.conv), '', 'green', dl(R.conv, P&&P.conv), sConv, tI),
-    execCard('Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', leads?'costo por lead':'costo por compra', 'amber', dl(m.cpa, pv&&pv.cpa), sCpa, tM),
-    execCard('ROAS', leads?'—':(R.roas!=null?fmtRoas(R.roas):'—'), leads?'obj. leads':'retorno', 'green', leads?null:dl(R.roas, pv&&pv.roas), leads?null:sRoas, tR),
-    execCard('Ventas', leads?'—':fmtMoney(Math.round(L.revenue)), leads?'objetivo leads':'valor de conversión', 'green', leads?null:dl(L.revenue, P&&P.revenue), leads?null:sRev, tM)
+    execCard(leads?'Costo por lead':'Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', leads?'CPL':'costo por compra', 'amber', dl(m.cpa, pv&&pv.cpa), sCpa, tM),
+    ...(leads ? [] : [
+      execCard('ROAS', R.roas!=null?fmtRoas(R.roas):'—', 'retorno', 'green', dl(R.roas, pv&&pv.roas), sRoas, tR),
+      execCard('Ventas', fmtMoney(Math.round(L.revenue)), 'valor de conversión', 'green', dl(L.revenue, P&&P.revenue), sRev, tM)
+    ])
   ].join('');
 
   const gCamps = cfApply(c, 'google', L.campaigns);
@@ -3167,7 +3197,7 @@ function googleAdsSectionHTML(c) {
     execCard('CTR', fmtPct(m.ctr), 'click-through', '', null, null),
     execCard('CPC prom.', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', null, null),
     execCard(leads?'Leads':'Conversiones', fmtInt(R.conv), '', 'green', null, null),
-    execCard('Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', leads?'costo por lead':'costo por compra', 'amber', null, null),
+    execCard(leads?'Costo por lead':'Costo / Conv.', m.cpa!=null?fmtMoney(m.cpa):'—', leads?'CPL':'costo por compra', 'amber', null, null),
     leads
       ? execCard('Impr. Share (búsq.)', sis+'%', 'cuota de impresiones', '', null, null)
       : execCard('ROAS', m.roas!=null?fmtRoas(m.roas):'—', 'retorno', 'green', null, null),
@@ -3604,9 +3634,14 @@ function tiktokSectionHTML(c) {
 
   const kpis = [
     execCard('Inversión', fmtMoney(R.spend), periodLabel(), 'blue', dl(R.spend, P&&P.spend), sGasto, tM),
-    execCard('Ventas', fmtMoney(revenue), leadsT?'objetivo leads':'revenue atribuido', 'green', dl(L.revenue, P&&P.revenue), sRev, tM),
-    execCard('ROAS', leadsT?'—':(R.roas!=null?fmtRoas(R.roas):'—'), leadsT?'obj. leads':'retorno', 'green', leadsT?null:dl(R.roas, pv&&pv.roas), leadsT?null:sRoas, tR),
-    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leadsT?'costo por lead':'costo por compra', 'amber', dl(cpa, pv&&pv.cpa), sCpa, tM),
+    ...(leadsT ? [
+      execCard('Leads', fmtInt(R.conv), 'generados', 'green', dl(R.conv, P&&P.conv), sConv, tI),
+      execCard('Costo por lead', cpa!=null?fmtMoney(cpa):'—', 'CPL', 'amber', dl(cpa, pv&&pv.cpa), sCpa, tM)
+    ] : [
+      execCard('Ventas', fmtMoney(revenue), 'revenue atribuido', 'green', dl(L.revenue, P&&P.revenue), sRev, tM),
+      execCard('ROAS', R.roas!=null?fmtRoas(R.roas):'—', 'retorno', 'green', dl(R.roas, pv&&pv.roas), sRoas, tR),
+      execCard('CPA', cpa!=null?fmtMoney(cpa):'—', 'costo por compra', 'amber', dl(cpa, pv&&pv.cpa), sCpa, tM)
+    ]),
     execCard('CTR', fmtPct(ctr), 'click-through', '', dl(ctr, pv&&pv.ctr), sCtr, tP),
     execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', dl(cpc, pv&&pv.cpc), sCpc, tM),
     execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', dl(cpm, pv&&pv.cpm), sCpm, tM),
@@ -3615,12 +3650,16 @@ function tiktokSectionHTML(c) {
     execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', dl(freq, pv&&pv.freq), null)
   ].join('');
 
-  const convKpis = [
-    execCard('Tasa de conversión', fmtPct(tasaConv), leadsT?'leads / clics':'compras / clics', 'green', dl(tasaConv, pv&&pv.tasaConv), sTasa, tP),
-    execCard('Valor promedio', (valorProm!=null && !leadsT)?fmtMoney(valorProm):'—', 'ticket promedio', '', leadsT?null:dl(valorProm, pv&&pv.valorProm), leadsT?null:sVal, tM),
+  const convKpis = (leadsT ? [
+    execCard('Tasa de conversión', fmtPct(tasaConv), 'leads / clics', 'green', dl(tasaConv, pv&&pv.tasaConv), sTasa, tP),
+    execCard('Leads', fmtInt(R.conv), 'en el período', 'green', dl(R.conv, P&&P.conv), sConv, tI),
+    execCard('Costo por lead', cpa!=null?fmtMoney(cpa):'—', 'CPL', 'amber', dl(cpa, pv&&pv.cpa), sCpa, tM)
+  ] : [
+    execCard('Tasa de conversión', fmtPct(tasaConv), 'compras / clics', 'green', dl(tasaConv, pv&&pv.tasaConv), sTasa, tP),
+    execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', dl(valorProm, pv&&pv.valorProm), sVal, tM),
     execCard('Revenue', fmtMoney(revenue), 'valor de conversión', 'green', dl(L.revenue, P&&P.revenue), sRev, tM),
-    execCard(leadsT?'Leads':'Compras', fmtInt(R.conv), '', 'green', dl(R.conv, P&&P.conv), sConv, tI)
-  ].join('');
+    execCard('Compras', fmtInt(R.conv), '', 'green', dl(R.conv, P&&P.conv), sConv, tI)
+  ]).join('');
 
   const V = L.video;
   const videoViews = V.plays;
@@ -3930,26 +3969,49 @@ function renderCliente() {
   const ctrSpark = liveDays ? liveDays.map(d => d.impr>0 ? d.clicks/d.impr*100 : null) : (w && w.ctr);
   const convSpark = liveDays ? liveDays.map(d => d.conv) : convSeries;
 
-  const perf = [
+  const tasaSpark = liveDays ? liveDays.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null) : convSpark;
+  // Clientes de leads: set de tarjetas propio (sin Ventas/ROAS/Revenue/ATC/Checkout, que no aplican).
+  const lpvRate = (lpv && clicks>0) ? lpv/clicks*100 : null;       // visitas efectivas a la landing / clics
+  const leadsPerVisit = (lpv>0) ? purchases/lpv*100 : null;        // leads / visitas a la landing
+  const cplVisit = lpv>0 ? spend/lpv : null;                       // costo por visita a la landing
+  const perf = (leads ? [
     execCard('Inversión', fmtMoney(spend), periodLabel(), 'blue', gastoD, gastoSpark, mM),
-    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', leads?'objetivo leads':'revenue atribuido', 'green', revD, revSpark, mM),
-    execCard('ROAS', leads?'—':fmtRoas(roas), leads?'obj. leads':'retorno', 'green', roasD, roasSpark, mR),
-    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', leads?'costo por lead':'costo por compra', 'amber', cpaD, cpaSpark, mM),
+    execCard('Leads', fmtInt(purchases), 'generados', 'green', convD, convSpark, mI),
+    execCard('Costo por lead', cpa!=null?fmtMoney(cpa):'—', 'CPL', 'amber', cpaD, cpaSpark, mM),
+    execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, ctrSpark, mP),
+    execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', cpcD, null),
+    execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', cpmD, null),
+    execCard('Alcance', reach!=null?fmtInt(reach):'—', 'personas', 'purple', reachD, null),
+    execCard('Impresiones', fmtInt(impresiones), '', 'purple', imprD, null),
+    execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', freqD, null),
+    execCard('Visitas a la landing', lpv>0?fmtInt(lpv):'—', 'landing page views', '', null, null)
+  ] : [
+    execCard('Inversión', fmtMoney(spend), periodLabel(), 'blue', gastoD, gastoSpark, mM),
+    execCard('Ventas', revenue!=null?fmtMoney(revenue):'—', 'revenue atribuido', 'green', revD, revSpark, mM),
+    execCard('ROAS', fmtRoas(roas), 'retorno', 'green', roasD, roasSpark, mR),
+    execCard('CPA', cpa!=null?fmtMoney(cpa):'—', 'costo por compra', 'amber', cpaD, cpaSpark, mM),
     execCard('CTR', fmtPct(ctr), 'click-through', '', ctrD, ctrSpark, mP),
     execCard('CPC', cpc!=null?fmtMoney(cpc):'—', 'costo por clic', '', cpcD, null),
     execCard('CPM', cpm!=null?fmtMoney(cpm):'—', 'costo x mil impr.', '', cpmD, null),
     execCard('Alcance', reach!=null?fmtInt(reach):'—', 'personas', 'purple', reachD, null),
     execCard('Impresiones', fmtInt(impresiones), '', 'purple', imprD, null),
     execCard('Frecuencia', freq!=null?freq.toFixed(1):'—', 'impr. por persona', (freq&&freq>=4)?'red':'', freqD, null)
-  ].join('');
-  const conv = [
-    execCard('Tasa de conversión', fmtPct(tasaConv), leads?'leads / clics':'compras / clics', 'green', tasaD, liveDays ? liveDays.map(d => d.clicks>0 ? d.conv/d.clicks*100 : null) : convSpark, mP),
+  ]).join('');
+  const conv = (leads ? [
+    execCard('Tasa de conversión', fmtPct(tasaConv), 'leads / clics', 'green', tasaD, tasaSpark, mP),
+    execCard('Conversión de la landing', fmtPct(leadsPerVisit), 'leads / visitas', 'green', null, null),
+    execCard('Tasa de carga', fmtPct(lpvRate), 'visitas / clics', 'amber', null, null),
+    execCard('Costo por visita', cplVisit!=null?fmtMoney(cplVisit):'—', 'a la landing', '', null, null),
+    execCard('Leads', fmtInt(purchases), 'en el período', 'green', convD, convSpark, mI),
+    execCard('Costo por lead', cpa!=null?fmtMoney(cpa):'—', 'CPL', 'amber', cpaD, cpaSpark, mM)
+  ] : [
+    execCard('Tasa de conversión', fmtPct(tasaConv), 'compras / clics', 'green', tasaD, tasaSpark, mP),
     execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', valorD, null),
     execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSpark, mM),
-    execCard(leads?'Leads':'Compras', fmtInt(purchases), '', 'green', convD, convSpark, mI),
-    execCard('Add to cart', atc!=null?fmtInt(atc):'—', leads?'no aplica':'', 'amber', atcD, null),
-    execCard('Checkouts', checkout!=null?fmtInt(checkout):'—', leads?'no aplica':'', 'amber', chkD, null)
-  ].join('');
+    execCard('Compras', fmtInt(purchases), '', 'green', convD, convSpark, mI),
+    execCard('Add to cart', atc!=null?fmtInt(atc):'—', '', 'amber', atcD, null),
+    execCard('Checkouts', checkout!=null?fmtInt(checkout):'—', '', 'amber', chkD, null)
+  ]).join('');
 
   const FNL_COLORS = ['#A88AFF','#5B9BFF','#3FC8C0','#00EABD','#F2B441','#F0A93C'];
   const FF = realFunnel ? metaFunnel(c) : null;

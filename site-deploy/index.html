@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1B222C" />
 <title>Aconcagua — Panel de clientes</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -353,7 +354,8 @@
   .exec-sub { font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-faint); margin: 28px 2px 12px; display: flex; align-items: center; gap: 6px; }
   .exec-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
   .exec-grid.conv-grid { grid-template-columns: repeat(3, 1fr); }
-  @media (max-width: 1100px) { .exec-grid, .exec-grid.conv-grid { grid-template-columns: repeat(2, 1fr); } }
+  .exec-grid.conv-grid.c4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 1100px) { .exec-grid, .exec-grid.conv-grid, .exec-grid.conv-grid.c4 { grid-template-columns: repeat(2, 1fr); } }
   .exec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 17px; box-shadow: var(--shadow-sm); border-top: 3px solid var(--accent); transition: transform .15s ease, box-shadow .15s ease; }
   .exec-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.16); }
   .exec-card .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); }
@@ -379,8 +381,9 @@
 
   .var-badge { display: inline-block; margin-left: 6px; font-weight: 700; }
   .var-badge.v-up { color: var(--green); } .var-badge.v-down { color: var(--red); } .var-badge.v-flat { color: var(--text-faint); }
-  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
-  @media (max-width: 760px) { .chart-grid-2 { grid-template-columns: 1fr; } }
+  .chart-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  .chart-grid-2 > * { min-width: 0; }
+  @media (max-width: 760px) { .chart-grid-2 { grid-template-columns: minmax(0, 1fr); } }
   .chart-box { background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 100%); border: 1px solid var(--border); border-radius: 16px; padding: 20px 22px; box-shadow: 0 10px 28px rgba(0,0,0,.22), var(--shadow-sm); min-height: 320px; display: flex; flex-direction: column; margin-bottom: 16px; }
   .chart-grid-2 .chart-box { margin-bottom: 0; }
   .chart-box-wide { min-height: 300px; }
@@ -523,6 +526,93 @@
   textarea.input { min-height: 72px; resize: vertical; width: 100%; }
   .modal.wide { max-width: 520px; }
 
+  /* ===== Móvil / tablet vertical (iOS y Android) ===== */
+  .mob-menu, .nav-backdrop { display: none; }
+  svg[data-sp], .trend-chart-svg { touch-action: pan-y; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  button, .btn, .seg button, .select, .input { -webkit-tap-highlight-color: transparent; }
+  @media (max-width: 860px) {
+    body { overflow-x: hidden; }
+    .app.shown-flex { display: block; }
+    /* El menú lateral pasa a ser un cajón que se abre con la hamburguesa. */
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; height: 100vh; height: 100dvh; width: min(300px, 86vw); z-index: 300; transform: translateX(-104%); transition: transform .22s ease; padding-top: calc(18px + env(safe-area-inset-top)); padding-bottom: calc(18px + env(safe-area-inset-bottom)); padding-left: max(14px, env(safe-area-inset-left)); -webkit-overflow-scrolling: touch; }
+    .sidebar.collapsed { width: min(300px, 86vw); }
+    .sidebar.collapsed .sidebar-label { display: block; }
+    .sidebar.collapsed .nav-label { display: inline; }
+    .sidebar.collapsed .wm { display: flex; }
+    .sidebar.collapsed .demo-badge { display: inline-block; }
+    .sidebar.collapsed .sidebar-top { align-items: stretch; }
+    .sidebar.collapsed .brand { justify-content: flex-start; }
+    body.nav-open .sidebar { transform: none; box-shadow: 0 0 48px rgba(0,0,0,.55); }
+    body.nav-open { overflow: hidden; }
+    .nav-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 250; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    body.nav-open .nav-backdrop { opacity: 1; pointer-events: auto; }
+    #sidebarCollapseBtn { display: none; }
+    .mob-menu { display: inline-flex; align-items: center; justify-content: center; padding: 8px 10px; }
+
+    .topbar-inner { padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left)); gap: 8px; }
+    .updated { flex: 1 1 0; min-width: 0; font-size: 11px; }
+    .container { padding: 0 max(14px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+
+    /* Tamaño mínimo de toque (~44px) y 16px en campos: así iOS no hace zoom al enfocar un input. */
+    .btn, .seg button { min-height: 40px; }
+    .input, .select, textarea.input { font-size: 16px; min-height: 44px; }
+    .select-sm { font-size: 14px; min-height: 40px; }
+
+    .cli-head { gap: 8px; }
+    .cli-head h2 { flex: 1 1 100%; font-size: 20px; }
+    .cli-head .seg { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .cli-head .seg::-webkit-scrollbar { display: none; }
+    .cli-head .seg button { white-space: nowrap; }
+    .cli-head .select, .detail-head .select { min-width: 0; }
+    .cli-combo { flex: 1 1 100%; }
+    .cli-select-btn { width: 100%; }
+    .cli-combo-pop, .dr-pop, .hf-pop { width: min(340px, calc(100vw - 28px)); max-width: calc(100vw - 28px); }
+    .dr-picker { position: relative; }
+    .dr-day { height: 38px; }
+
+    .exec-sub { margin: 22px 2px 10px; font-size: 12px; flex-wrap: wrap; }
+    .exec-grid, .exec-grid.conv-grid, .exec-grid.conv-grid.c4 { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .exec-card { padding: 12px 12px; border-radius: 12px; min-width: 0; }
+    .exec-card:hover { transform: none; }
+    .exec-card .l { font-size: 10px; }
+    .exec-card .v { font-size: 19px; margin-top: 6px; overflow-wrap: anywhere; }
+    .exec-card .v-row { gap: 6px; }
+    .exec-card .spark { display: none; }
+    .mini-grid { grid-template-columns: repeat(2, 1fr); }
+    .summary { grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+    .metric-card .value { font-size: 24px; }
+
+    .chart-grid-2 { grid-template-columns: minmax(0, 1fr); }
+    .chart-grid-2 > *, .chart-box, .fnl { min-width: 0; max-width: 100%; }
+    .chart-box > .table-wrap { min-width: 0; max-width: 100%; }
+    .chart-box { padding: 14px 14px; min-height: 0; border-radius: 14px; }
+    .chart-title-row { flex-wrap: wrap; align-items: flex-start; }
+    .chart-title-actions { flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
+    #ttRetentionVideoSel { max-width: 100%; width: 100%; }
+    .fnl { padding: 16px 14px; }
+    .hero-banner { padding: 14px; }
+    .hero-sentence { font-size: 14px; }
+
+    /* Tablas: se desplazan en horizontal dentro de su caja, nunca ensanchan la página. */
+    .table-wrap { -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .table-wrap.scroll-tbl { max-height: 60vh; }
+    table.compact th, table.compact td { padding: 9px 10px; }
+    .vbar-list { gap: 12px; }
+
+    .th-grid { gap: 10px; }
+    .th-grid .field { flex: 1 1 calc(50% - 10px); min-width: 0; }
+    .modal { max-width: calc(100vw - 28px); padding: 20px; max-height: 90vh; overflow-y: auto; }
+    .config-card { width: calc(100vw - 28px); max-width: 460px; padding: 22px 18px; }
+    .toast { bottom: calc(18px + env(safe-area-inset-bottom)); max-width: calc(100vw - 28px); text-align: center; }
+    #sparkTip { white-space: normal; max-width: calc(100vw - 16px); }
+  }
+  @media (max-width: 380px) {
+    .exec-card .v { font-size: 17px; }
+    .exec-grid { gap: 8px; }
+    .seg button { padding: 6px 9px; font-size: 12.5px; }
+  }
+
 </style>
 </head>
 <body>
@@ -567,6 +657,7 @@
 </div>
 
 <div class="app" id="app">
+  <div class="nav-backdrop" id="navBackdrop"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <div class="brand">
@@ -591,6 +682,7 @@
   <div class="main-area">
     <header class="topbar">
       <div class="topbar-inner">
+        <button type="button" class="btn mob-menu" id="mobMenuBtn" aria-label="Abrir menú"><svg class="ico-sm ico-18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5.5h14M3 10h14M3 14.5h14"/></svg></button>
         <div class="updated"><span class="dot-live"></span><span id="lastUpdated">—</span></div>
         <span id="dashControls" style="display:contents">
           <div class="dr-picker" id="mainPeriodPicker">
@@ -2744,6 +2836,8 @@ function wireTrendChart(c, platform) {
     tooltip.style.top = '8px';
   }
   svg.addEventListener('mousemove', update);
+  svg.addEventListener('touchstart', e => update(e.touches[0]), { passive: true });
+  svg.addEventListener('touchmove', e => update(e.touches[0]), { passive: true });
   svg.addEventListener('mouseleave', () => { tooltip.style.display='none'; hoverLine.style.display='none'; hoverInv.style.display='none'; hoverRight.style.display='none'; });
 }
 const CAMP_METRICS = {
@@ -4006,6 +4100,8 @@ function renderCliente() {
     execCard('Costo por lead', cpa!=null?fmtMoney(cpa):'—', 'CPL', 'amber', cpaD, cpaSpark, mM)
   ] : [
     execCard('Tasa de conversión', fmtPct(tasaConv), 'compras / clics', 'green', tasaD, tasaSpark, mP),
+    execCard('Conversión de la landing', fmtPct(lpv>0 ? purchases/lpv*100 : null), 'compras / visitas', 'green', null, null),
+    execCard('Visitas a la landing', lpv>0?fmtInt(lpv):'—', 'landing page views', '', null, null),
     execCard('Valor promedio', valorProm!=null?fmtMoney(valorProm):'—', 'ticket promedio', '', valorD, null),
     execCard('Revenue', revenue!=null?fmtMoney(revenue):'—', 'valor de conversión', 'green', revD, revSpark, mM),
     execCard('Compras', fmtInt(purchases), '', 'green', convD, convSpark, mI),
@@ -4046,7 +4142,7 @@ function renderCliente() {
 
   host.innerHTML = head + heroHTML +
     `<div class="exec-sub">Resumen ejecutivo · Performance</div><div class="exec-grid">${perf}</div>` +
-    `<div class="exec-sub">Resumen ejecutivo · Conversión</div><div class="exec-grid conv-grid">${conv}</div>` +
+    `<div class="exec-sub">Resumen ejecutivo · Conversión</div><div class="exec-grid conv-grid${leads ? '' : ' c4'}">${conv}</div>` +
     pacingWidgetHTML(c, 'meta') +
     hierFilterBarHTML(c) +
     trendChartSectionHTML(c, 'meta') +
@@ -4085,8 +4181,14 @@ function openThModal() {
 }
 function closeThModal() { document.getElementById('thModal').classList.remove('show'); }
 
+function setNavOpen(open) { document.body.classList.toggle('nav-open', !!open); }
 function wireEvents() {
   wirePeriodPicker('main');
+  document.getElementById('mobMenuBtn').addEventListener('click', () => setNavOpen(!document.body.classList.contains('nav-open')));
+  document.getElementById('navBackdrop').addEventListener('click', () => setNavOpen(false));
+  document.querySelectorAll('#sidebar button').forEach(b => b.addEventListener('click', () => { if (b.id !== 'sidebarCollapseBtn') setNavOpen(false); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setNavOpen(false); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 860) setNavOpen(false); });
   document.getElementById('btnRefresh').addEventListener('click', () => { loadData(true); toast('Datos actualizados'); });
   document.getElementById('btnReconfig').addEventListener('click', showConfig);
   document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
@@ -4238,12 +4340,15 @@ function hideSparkTip() {
   sparkTipEl.style.display = 'none';
   document.querySelectorAll('.sp-dot').forEach(d => { d.style.display = 'none'; });
 }
-document.addEventListener('mousemove', e => {
+// Mouse y dedo (iOS/Android): el toque usa el mismo tooltip, tomando el primer punto de contacto.
+function pointerOf(e) { return (e.touches && e.touches[0]) || e; }
+function onSparkMove(e) {
+  const pt = pointerOf(e);
   const svg = e.target.closest && e.target.closest('svg[data-sp]');
   if (!svg) { if (sparkTipEl.style.display !== 'none') hideSparkTip(); return; }
   if (!svg._pts) { try { svg._pts = JSON.parse(svg.dataset.sp); } catch (err) { return; } }
   const rect = svg.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (svg.viewBox.baseVal.width / rect.width);
+  const x = (pt.clientX - rect.left) * (svg.viewBox.baseVal.width / rect.width);
   let best = svg._pts[0];
   svg._pts.forEach(p => { if (Math.abs(p.x - x) < Math.abs(best.x - x)) best = p; });
   const dot = svg.querySelector('.sp-dot');
@@ -4252,9 +4357,13 @@ document.addEventListener('mousemove', e => {
   sparkTipEl.textContent = best.t;
   sparkTipEl.style.display = 'block';
   const tw = sparkTipEl.offsetWidth;
-  sparkTipEl.style.left = Math.min(e.clientX + 12, window.innerWidth - tw - 8) + 'px';
-  sparkTipEl.style.top = (e.clientY + 16) + 'px';
-});
+  sparkTipEl.style.left = Math.max(8, Math.min(pt.clientX + 12, window.innerWidth - tw - 8)) + 'px';
+  // En pantalla táctil el dedo tapa lo que está debajo, así que el cartel se muestra arriba del punto tocado.
+  sparkTipEl.style.top = (e.touches ? Math.max(8, pt.clientY - sparkTipEl.offsetHeight - 24) : pt.clientY + 16) + 'px';
+}
+document.addEventListener('mousemove', onSparkMove);
+document.addEventListener('touchstart', onSparkMove, { passive: true });
+document.addEventListener('touchmove', onSparkMove, { passive: true });
 window.addEventListener('scroll', hideSparkTip, true);
 
 wireEvents();
